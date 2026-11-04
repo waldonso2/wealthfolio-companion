@@ -1,6 +1,7 @@
 """What the forms of the web UI accept (#33): checked on the server, not only by the browser."""
 
 import asyncio
+from datetime import UTC, date, datetime
 
 import pytest
 
@@ -46,6 +47,19 @@ def test_isin_iban_mic_symbol_date():
     assert inputs.security_id("de0007164600") == "DE0007164600"
     with pytest.raises(inputs.Invalid):
         inputs.security_id("<b>")
+
+
+def test_today_is_german_time_not_the_servers(monkeypatch):
+    class Clock(datetime):  # 23:30 UTC on 4 Nov is already 5 Nov in Berlin
+        @classmethod
+        def now(cls, tz=None):
+            return datetime(2026, 11, 4, 23, 30, tzinfo=UTC).astimezone(tz)
+
+    monkeypatch.setattr(inputs, "datetime", Clock)
+    assert inputs.today() == date(2026, 11, 5)
+    assert inputs.iso_date("2026-11-05", "x") == "2026-11-05"  # not "in the future" any more
+    with pytest.raises(inputs.Invalid):
+        inputs.iso_date("2026-11-06", "x")
 
 
 def test_forms_reject_bad_input_and_keep_the_config(tmp_path, hidden_pages):

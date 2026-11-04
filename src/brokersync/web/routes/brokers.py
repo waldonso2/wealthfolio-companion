@@ -5,7 +5,6 @@ from __future__ import annotations
 import logging
 from collections import Counter
 from dataclasses import replace
-from datetime import date
 from functools import partial
 
 from fastapi import APIRouter, Form, Request
@@ -62,7 +61,7 @@ def _broker_form(request: Request, ctx: AppContext, key: str, b: config_mod.Brok
     response = ctx.render(request, "broker.html", key=key, adapter=adapter, b=b, accounts=accounts, wf_error=error,
                           stored={k: bool(v) for k, v in stored.items()}, plain=plain, errors=errors or {},
                           has_access=bool(ctx.vault.broker(key)),
-                          today=date.today().isoformat(),
+                          today=inputs.today().isoformat(),
                           statement_rows=len(ctx.state.statement_rows(key)) if adapter.statement_label else 0)
     if errors:
         response.status_code = 422

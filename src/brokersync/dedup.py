@@ -19,6 +19,7 @@ Each existing activity matches at most one transaction.
 
 from __future__ import annotations
 
+import re
 from bisect import bisect_left, bisect_right, insort
 from datetime import datetime, timedelta
 from decimal import Decimal, InvalidOperation
@@ -29,6 +30,7 @@ from .model import when
 MATCH_WINDOW_SECONDS = 36 * 60 * 60
 AMOUNT_TOLERANCE = Decimal("0.02")
 MAIN_TYPES = {"BUY", "SELL", "DIVIDEND", "DEPOSIT", "WITHDRAWAL", "INTEREST", "FEE", "TAX", "CREDIT"}
+SYNC_TAG = re.compile(r"\[SYNC [^\]]*\]")  # the reference at the end of every comment the sync writes
 
 
 def _dec(v) -> Decimal | None:
@@ -60,6 +62,16 @@ class ExistingIndex:
         # By account and type, sorted by time (then list position), so a find looks only at its time window.
         self._buckets: dict[tuple, list[tuple[datetime, int, dict]]] = {}
         self._indexed = 0
+        # The ids of the activities carrying each "[SYNC broker:id]" reference, filled like the buckets.
+        self._tags: dict[str, set[str]] = {}
+        self._tagged = 0
+
+    def _tagged_ids(self, tag: str) -> set[str]:
+        for e in self.existing[self._tagged:]:
+            for t in SYNC_TAG.findall(e.get("comment") or ""):
+                self._tags.setdefault(t, set()).add(e["id"])
+        self._tagged = len(self.existing)
+        return self._tags.get(tag, set())
 
     def _facts(self, e: dict) -> tuple[datetime, Decimal | None, Decimal | None, Decimal | None]:
         """Date, amount, quantity and unit price of an existing activity, parsed once: every find compares
@@ -91,10 +103,7 @@ class ExistingIndex:
         duplicates, so an interrupted run is completed; another transaction's (two equal card
         payments within the window) are that one, never this one.
         """
-        tag = ref.strip()
-        for e in self.existing:
-            if tag in (e.get("comment") or ""):
-                self.used.add(e["id"])
+        self.used |= self._tagged_ids(ref.strip())
         a = main_activity(payloads)
         if a["activityType"] not in MAIN_TYPES:
             return None
