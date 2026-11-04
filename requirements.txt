@@ -1008,9 +1008,9 @@ setuptools==84.1.0 \
     --hash=sha256:23657205b63d4d31395ab917815247f694aafad28cd21316bf5fd45a51048ea0 \
     --hash=sha256:5231689c6ac8156cd155cfb98c3fd6fb252c3e7e9bd3d78b64d3c55f132624c9
     # via -r requirements-build.in
-shtab==1.12.1 \
-    --hash=sha256:0637338723a8fc08ed1c2fd826d8432229924649c26e3247bb48c53d60ca3bf9 \
-    --hash=sha256:31d07db9c958fbe15edd1d0f3c966a7085766374a11ccc5861b810fcd4ada123
+shtab==1.13.0 \
+    --hash=sha256:0a5be9d7ab2b4549e9a38252abcd5ecf5ec6813ecd80c6b06fa851bff55a5085 \
+    --hash=sha256:cdf7543fc1888dd131320917f3ba9643d8f1a77d406114a09d5a31f76274c7d9
     # via pytr
 sqlcipher3-binary==0.6.0 ; platform_machine == 'x86_64' \
     --hash=sha256:04dc5ac3f748c4cec5fb53e5f0f6474e9d702239372cc9d3d94cd27d06e3ebd3 \
