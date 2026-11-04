@@ -11,7 +11,7 @@
 # core's moving main branch, and set every run (the `update` command keeps the URL of
 # the run that wrote it). .github/workflows/core-watch.yml reports newer commits.
 export COMMUNITY_SCRIPTS_URL="${COMMUNITY_SCRIPTS_URL:-https://raw.githubusercontent.com/waldonso2/wealthfolio-companion/main}"
-export COMMUNITY_SCRIPTS_CORE_URL="https://raw.githubusercontent.com/community-scripts/core/8354b069a5fce0ab074c15825fb24704387dde04"
+export COMMUNITY_SCRIPTS_CORE_URL="https://raw.githubusercontent.com/community-scripts/core/59574c3c1d4c6f7b40863e6c7f174e6a16dace9d"
 source <(curl -fsSL "$COMMUNITY_SCRIPTS_CORE_URL/core/build.func")
 # Copyright (c) 2026 waldonso2
 # License: MIT | https://github.com/waldonso2/wealthfolio-companion/raw/main/LICENSE

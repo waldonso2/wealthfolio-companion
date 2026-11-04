@@ -19,7 +19,6 @@
 <div class="card">
   <h2>{{ _("Einstellungen") }}</h2>
   <p>{{ _("Abrufmodus: {mode}", mode=_("Sicher – jeder Abruf mit deiner Anmeldung") if safe_mode else _("Automatisch – der Timer ruft täglich ab")) }} · <a href="/security">{{ _("Abrufmodus ändern") }}</a></p>
-  <p><a href="/brokers">{{ _("Broker einrichten") }}</a></p>
 </div>
 {% endblock %}
 {% block actions %}
