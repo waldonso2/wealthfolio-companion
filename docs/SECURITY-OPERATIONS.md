@@ -84,7 +84,8 @@ Repository `waldonso2/wealthfolio-companion` unless noted. Tick in #151; the res
    - No environment secrets are needed.
 4. **Actions** - *Settings → Actions → General*:
    - *Actions permissions*: *Allow waldonso2, and select non-waldonso2, actions and reusable workflows* with
-     *Allow actions created by GitHub* on and the list `docker/*, sigstore/cosign-installer@*, ossf/scorecard-action@*`;
+     *Allow actions created by GitHub* on and the list `docker/*, sigstore/cosign-installer@*, ossf/scorecard-action@*, zizmorcore/zizmor-action@*` (the last one runs
+     in quality-kit's `workflows` job: without it CI ends in `startup_failure` and the required checks never start);
      *Require actions to be pinned to a full-length commit SHA*: on.
    - *Workflow permissions*: *Read repository contents and packages permissions* (the default token read-only; the
      workflows ask for more per job). *Allow GitHub Actions to create and approve pull requests*: on only if you want
