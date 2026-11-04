@@ -438,3 +438,24 @@ def test_a_second_login_step_of_the_same_broker_at_once_is_refused(tmp_path):
             assert (first, second, other) == (True, False, True)
         assert "fake" in ctx.login_busy  # the refused one didn't free it
     assert ctx.login_busy == set()
+
+
+def test_a_job_whose_message_cannot_be_made_still_frees_the_job_slot(monkeypatch):
+    import threading
+    from types import SimpleNamespace
+
+    from brokersync.web.routes import overview
+
+    ctx = SimpleNamespace(start_lock=threading.Lock(), running=threading.Event(), job="", job_result=None,
+                          run_in_thread=False)
+
+    def fails(lang):
+        raise RuntimeError("boom")
+
+    def no_translation(*args, **kwargs):
+        raise KeyError("no translation")
+
+    monkeypatch.setattr(overview, "translate", no_translation)
+    with pytest.raises(KeyError):
+        overview.launch(ctx, "Abruf", fails, "de")
+    assert not ctx.running.is_set()

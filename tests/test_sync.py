@@ -327,6 +327,23 @@ def test_a_crashing_adapter_is_reported_keeps_its_session_and_the_others_still_r
     assert [r.status for r in syncer.state.runs("broken")] == ["error"]
 
 
+class CloseFailsAdapter(BrokenAdapter):
+    """Closing fails (a temp directory that can't be removed) after a good login."""
+
+    def login(self):
+        self.session["token"] = "kept"
+
+    def close(self):
+        raise OSError("cannot remove the temp directory")
+
+
+def test_a_session_is_stored_even_when_closing_the_adapter_fails(tmp_path):
+    syncer, _ = setup(tmp_path, FakeWealthfolio(), brokers=("broken",))
+    syncer.adapters = {"broken": CloseFailsAdapter}
+    assert [r.status for r in syncer.run()] == ["error"]
+    assert syncer.vault.load()["brokers"]["broken"]["session"] == {"token": "kept"}
+
+
 def test_a_broker_without_wealthfolio_accounts_is_an_error_and_unknown_brokers_are_ignored(tmp_path):
     wf = FakeWealthfolio()
     syncer, notifier = setup(tmp_path, wf)

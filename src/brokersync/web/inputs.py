@@ -8,11 +8,12 @@ at ``MAX_TEXT`` characters: everything ends up in the encrypted config, the vaul
 from __future__ import annotations
 
 import re
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 from urllib.parse import urlparse
 
 from ..assets import valid_isin
+from ..history import BERLIN
 from .i18n import N_, translate
 
 MAX_TEXT = 500
@@ -92,6 +93,11 @@ def blz(value: str, label: str) -> str:
     return value
 
 
+def today() -> date:
+    """Today in German time: the container's clock is UTC, the start date is midnight German time (sync.BERLIN)."""
+    return datetime.now(BERLIN).date()
+
+
 def iso_date(value: str, label: str) -> str:
     value = text(value, label)
     if not value:
@@ -100,7 +106,7 @@ def iso_date(value: str, label: str) -> str:
         day = date.fromisoformat(value)
     except ValueError as e:
         raise Invalid("{label}: bitte als Datum angeben (JJJJ-MM-TT).", label=label) from e
-    if day > date.today():
+    if day > today():
         raise Invalid("{label}: darf nicht in der Zukunft liegen.", label=label)
     return day.isoformat()
 
