@@ -278,6 +278,7 @@ EN: dict[str, str] = {
     "Jetzt abrufen": "Fetch now",
     "Noch kein Broker": "No broker yet",
     "Broker einrichten": "Set up a broker",
+    "Broker hinzufügen": "Add broker",
     "Letzte Läufe": "Last runs",
     "{n} neu": "{n} new",
     "{n} Fehler": "{n} errors",

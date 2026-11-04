@@ -43,7 +43,7 @@ def test_every_service_page_shows_head_status_settings_and_actions_in_that_order
         nav = page.split('<nav class="main"')[1]
         assert 'aria-current="page"' in nav.split('href="/"')[1][:30]  # under Dienste in the header
     page = client.get("/services/sync").text
-    assert "Testbroker" in page and 'class="light' in page and 'href="/brokers"' in page
+    assert "Testbroker" in page and 'class="light' in page and 'href="/brokers"' not in page  # #180
     assert 'href="/security"' in page and 'action="/run"' in page
     assert "Automatisch" in page
 

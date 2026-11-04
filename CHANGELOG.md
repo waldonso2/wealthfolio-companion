@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.0b2
+
+Install engine pin moved, broker setup reachable from the broker pages.
+
+- Install engine (#179): the pin on community-scripts/core moves to `59574c3` (11 commits reviewed: host probes, spinner and error-reporting fixes, telemetry payload v3 - still opt-in through the diagnostics setting - and `setup_java_memory`; nothing fetched or executed outside the pinned commit).
+- UI (#180): the gear of *Broker-Sync* on *Dienste* opens the broker list (`/brokers`); the *Broker* page has an *Add broker* button next to *Alle abrufen*; the duplicate *Broker einrichten* link on the Broker-Sync service page is gone.
+
 ## 0.1.0b1
 
 Features: DKB depot transactions booked, comdirect dividends with their tax, one rule for rate limits, more sector names mapped, asset classes for funds without one.
