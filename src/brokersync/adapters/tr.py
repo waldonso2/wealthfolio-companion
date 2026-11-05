@@ -12,10 +12,11 @@
   trades with fee and tax, dividends net with withholding tax, Saveback as a
   bonus-funded buy, interest, Vorabpauschale, tax corrections (refunds and
   charges), referral bonuses, deposits, card payments and transfers; of the
-  corporate actions worthless write-offs (a sale at 0). Other corporate
-  actions (also dividend reinvestments: pytr reads no share count for them),
-  securities transfers and private markets are reported as unknown: the CSV
-  import handles them.
+  corporate actions worthless write-offs (a sale at 0) and dividend
+  reinvestments (a buy paid from the cash account, the share count read from
+  the event's details; without it the event stays unknown). Other corporate
+  actions, securities transfers and private markets are reported as unknown:
+  the CSV import handles them.
 - **Purely informational events** (orders created/cancelled, documents, ...),
   listed by pytr, are skipped silently; anything else pytr can't classify is
   reported.
@@ -93,7 +94,7 @@ def to_transactions(events: list[dict]) -> list[Transaction]:
             if (event_type in events_known_ignored or raw.get("title") in events_known_ignored_title
                     or raw.get("subtitle") in events_known_ignored_subtitle) or raw.get("amount") is None:
                 continue  # informational, no money or shares moved
-            out.append(_unclassified(value, base)
+            out.append(_unclassified(value, base, raw, ev)
                        or _unknown(raw, event_type or raw.get("subtitle") or raw.get("title") or "?"))
             continue
 
@@ -138,13 +139,28 @@ def _trade(raw: dict, value: Decimal, fees: Decimal, taxes: Decimal, base: dict,
     return _unknown(raw, f"{base['raw_type']} {raw.get('subtitle') or ''}".strip())
 
 
-def _unclassified(value: Decimal, base: dict) -> Transaction | None:
+def _unclassified(value: Decimal, base: dict, raw: dict, ev) -> Transaction | None:
     """Events pytr has no type for that the CSV import books (``transform.ts``); None: still unknown."""
     event_type = base["raw_type"]
     if event_type.startswith("REFERRAL_") and value > 0:  # the inviter's referral bonus
         return Transaction(kind=Kind.BONUS, net=value, **base)
-    # A dividend reinvestment (SSP_CORPORATE_ACTION_INSTRUMENT) stays unknown: pytr reads no share count for it.
+    if event_type == "SSP_CORPORATE_ACTION_INSTRUMENT" and "Reinvestition" in (raw.get("subtitle") or ""):
+        # A dividend reinvestment: a buy of the new shares paid from the cash account (as the CSV import). pytr reads
+        # no share count, the details' "Aktien" row has it; without it, or without a debit, nothing is guessed.
+        shares = _german_number(_detail(raw, "Aktien"))
+        if value < 0 and ev.isin and shares:
+            return Transaction(kind=Kind.BUY, net=-value, gross=-value, **base,
+                               isin=ev.isin, name=ev.title or "", shares=shares)
     return None
+
+
+def _german_number(text: str) -> Decimal | None:
+    """``1.234,56`` → Decimal; None unless it is a positive number (German notation, as the app shows it)."""
+    try:
+        number = Decimal(text.replace(".", "").replace(",", "."))
+    except ArithmeticError:
+        return None
+    return number if number.is_finite() and number > 0 else None
 
 
 def portfolio_positions(portfolio: dict | None) -> list[dict]:
