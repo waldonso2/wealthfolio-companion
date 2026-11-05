@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.0b3
+
+Trade Republic dividend reinvestments are booked.
+
+- Trade Republic (#188): the debit of a dividend reinvestment (`SSP_CORPORATE_ACTION_INSTRUMENT`, *Reinvestition der Dividende*) is booked as a BUY of the new shares paid from the cash account, like the CSV import does. pytr reads no share count for it; the service takes it from the event's *Aktien* detail row (German notation) and books nothing when the row, the ISIN or the debit is missing - the event stays in *Unbekannt*. The cash leg of the reinvestment (`SSP_CORPORATE_ACTION_CASH`, which pytr labels `TAXES` only as its fallback) and the other reports of this round - the reverse split into a new ISIN (#186, #187) and Deutsche Bank's *Kapitaltransaktion* spin-off (#190, #191) - stay unknown: the service knows neither the new share count and ISIN nor the cost basis, and guesses nothing.
+
 ## 0.1.0b2
 
 Install engine pin moved, broker setup reachable from the broker pages, five fixes from a code audit.

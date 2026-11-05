@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "wealthfolio-companion"
-version = "0.1.0b2"
+version = "0.1.0b3"
 description = "Fetches transactions from brokers and writes them, deduplicated, into a self-hosted Wealthfolio"
 readme = "README.md"
 license = "MIT"
