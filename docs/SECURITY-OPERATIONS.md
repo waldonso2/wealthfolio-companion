@@ -185,6 +185,23 @@ release only with an attestation of `release.yml@refs/heads/main` on a GitHub-ho
 - **The anchor of a new install** stays `ct/` from `main` over HTTPS (OPERATIONS.md, *Trust chain*); checking the
   files of a release tag first is documented there.
 
+### Release watch by mail (second account, no code)
+
+A release you did not make is the one thing a takeover cannot avoid: the workflow run, the GitHub release and the
+Rekor entry all exist. The cheapest alarm lives **outside the account an attacker would take**:
+
+1. Create (or use) a second GitHub account with its own e-mail address and a second factor of its own, not linked to
+   `waldonso2` and not a collaborator with write access.
+2. On `waldonso2/wealthfolio-companion`: **Watch → Custom → Releases**. GitHub then mails that account for every new
+   release. Check *Settings → Notifications → Email* of that account (the *Watching* row must include e-mail).
+3. Rule for yourself: every mail must match a release you started. One you did not start means: switch automatic
+   updates off on your installations, check the attestation of the release against the Rekor log
+   (`search.sigstore.dev`, search by the release's SHA-256), and secure the account (parts 1-2 of #150).
+
+Not covered: someone who also takes the second account, or who deletes the release before the mail is read (the mail
+stays). A Rekor-side monitor (sigstore's `rekor-monitor`, run on a host that is not GitHub) would add the log as
+source; it is not built - it needs a machine of yours that runs it.
+
 What reduces the remaining risk, in order of effort: parts 1-2 of #150 (account, rulesets - the checklist above), the
 environment `release` with you as required reviewer, a Rekor/new-release watch outside GitHub, and - not built - a
 delay before the automatic update installs a new release (a window to notice and pull it) or an owner-held offline
