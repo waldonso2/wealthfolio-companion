@@ -16,6 +16,8 @@
 #   bash sec12-docker.sh clean        removes containers, volumes and the work folder
 # The result goes to /root/sec12-docker-report.txt (no secrets in it). PREV overrides the older release to start from.
 set -uo pipefail
+# `pct enter` and `pct exec` start a shell without /usr/local/bin, where cosign is installed.
+export PATH="/usr/local/bin:/usr/local/sbin:$PATH"
 
 REPO=waldonso2/wealthfolio-companion
 RAW="https://raw.githubusercontent.com/$REPO/main"
@@ -61,9 +63,12 @@ install_cosign() {  # the README's pinned cosign 3.0.6 and the checksums of sigs
     aarch64) a=arm64 s=bedac92e8c3729864e13d4a17048007cfafa79d5deca993a43a90ffe018ef2b8 ;;
     *) return 1 ;;
   esac
-  curl -fsSLo /tmp/cosign --retry 6 "https://github.com/sigstore/cosign/releases/download/v3.0.6/cosign-linux-$a" &&
-    echo "$s  /tmp/cosign" | sha256sum -c - >/dev/null && install -m 755 /tmp/cosign /usr/local/bin/cosign
+  local rc=0
+  { curl -fsSLo /tmp/cosign --retry 6 "https://github.com/sigstore/cosign/releases/download/v3.0.6/cosign-linux-$a" &&
+      echo "$s  /tmp/cosign" | sha256sum -c - >/dev/null &&
+      install -m 755 /tmp/cosign /usr/local/bin/cosign; } || rc=$?
   rm -f /tmp/cosign
+  return "$rc"  # not rm's status: a failed download must fail the preflight
 }
 
 preflight() {
@@ -73,7 +78,8 @@ preflight() {
   docker info >/dev/null 2>&1 || { echo "The Docker daemon does not answer." >&2; exit 2; }
   { docker compose version >/dev/null 2>&1 || docker-compose version >/dev/null 2>&1; } ||
     { echo "Docker Compose is missing." >&2; exit 2; }
-  install_cosign || { echo "cosign 3 could not be installed." >&2; exit 2; }
+  install_cosign || { echo "cosign 3 could not be downloaded or its checksum did not match." >&2; exit 2; }
+  cosign version >/dev/null 2>&1 || { echo "cosign is installed but does not run (PATH: $PATH)." >&2; exit 2; }
   if docker ps -a --format '{{.Names}}' | grep -qx companion; then
     echo "A container named 'companion' exists. Use a disposable host, or remove it first." >&2; exit 2
   fi
@@ -98,9 +104,14 @@ scenario_12() {  # install a verified release
   local ref
   ref="$(cd "$WORK" && ./pull-verified-image.sh --env .env "$old" 2>"$WORK/verify.log")"
   check "pull-verified-image.sh accepts v$old" test -n "$ref"
+  if [[ -z "$ref" ]]; then
+    say "      $(tail -n 3 "$WORK/verify.log" | tr '\n' ' ')"
+    return 1  # nothing below can run without a verified image
+  fi
   check "the reference is a digest, not a tag" bash -c "[[ '$ref' =~ @sha256:[0-9a-f]{64}$ ]]"
   up; check "the container starts and answers" wait_healthy
-  check "it runs exactly the verified reference" test "$(running_image)" == "$(image_ref)"
+  check "it runs exactly the verified reference" bash -c "[[ -n '$(image_ref)' && '$(running_image)' == '$(image_ref)' ]]"
+  healthy || say "      $(cd "$WORK" && docker logs companion 2>&1 | tail -n 5 | tr '\n' ' ')"
   check "the redirect on 8090 answers 308" test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8090/)" == 308
   check "the setup code is in the log" bash -c "docker logs companion 2>&1 | grep -q 'Setup code'"
 }
@@ -146,7 +157,7 @@ scenario_update() {  # old -> new, the data volume stays
   check "v$new is verified" test -n "$ref"
   check "the new image is pulled" pull
   up; check "the new container answers" wait_healthy
-  check "it runs exactly the verified reference" test "$(running_image)" == "$(image_ref)"
+  check "it runs exactly the verified reference" bash -c "[[ -n '$(image_ref)' && '$(running_image)' == '$(image_ref)' ]]"
   after="$(datafiles)"
   check "the data files are the same ($before)" test "$before" == "$after"
   check "the data opens (security-status)" bash -c "docker exec companion wealthfolio-companion security-status >/dev/null"
@@ -200,7 +211,10 @@ case "${1:-}" in
     [[ -n "$new" && -n "$old" ]] || { echo "latest and previous release unknown" >&2; exit 2; }
     say "SEC-12 Docker run on $(hostname), $(date -u +%FT%TZ): start with $old, update to $new"
     prepare
-    scenario_12 "$old"
+    if ! scenario_12 "$old"; then
+      say ""; say "Stopped after scenario 12: $FAILS failed. Report: $REPORT"
+      exit 1
+    fi
     id="$(container_id)"; ref="$(image_ref)"
     scenario_13
     scenario_14 "$id" "$ref"
