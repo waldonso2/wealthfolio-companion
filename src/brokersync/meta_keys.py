@@ -58,6 +58,9 @@ TAXONOMIES_LAST = MetaKey("taxonomies:last", "json", False,
 ASSET_CLASSES = MetaKey("asset-classes", "json", False,
                         "positions without an asset class in Wealthfolio, and those given one from the fund's name: "
                         "{missing: [{id, name, isin}], named: {asset id: {name, class}}, at} (#141)")
+FIRDS = MetaKey("firds", "json", False,
+                "what ESMA's FIRDS lists for an ISIN: {codes: [CFI code], at}; codes empty = not in the register, "
+                "asked again after firds.RETRY_DAYS (firds.py, #185)")
 AUTO_UPDATE = MetaKey("auto-update", "json", False,
                       "the last automatic update (deploy/companion-autoupdate): {from, to, ok, at}")
 UPDATE = MetaKey("update", "json", False, "the newest release GitHub named: {version, checked} (updates.py)")
@@ -77,5 +80,5 @@ ALL = (ASSETS_LEARNED, CASH_ASSETS_REPAIRED, REFETCH, SAVINGS_ACCOUNT, DIVIDEND_
        RATE_LIMIT, OWN_DIVIDEND_TAX,
        RETIRED_NOTICE, LOGO, LOGOS_LAST, PROGRESS, CHECKLIST_HIDDEN, UPDATE, AUTO_UPDATE, FUND, FUNDS_LAST,
        XRAY_ACCEPTED, XRAY_NOTIFIED, TAXONOMIES_LAST, SPENDING, ISIN, FUNDS_PROGRESS, XRAY_ADDON_STATUS,
-       XRAY_ADDON_STALE, WEALTHFOLIO_APPEARANCE, ASSET_CLASSES)
+       XRAY_ADDON_STALE, WEALTHFOLIO_APPEARANCE, ASSET_CLASSES, FIRDS)
 BROKER_KEYS = tuple(k for k in ALL if k.per_broker)

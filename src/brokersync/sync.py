@@ -341,7 +341,7 @@ class Syncer:
                     except WealthfolioError:
                         log.exception("look-through: countries and sectors not written to Wealthfolio")
                 try:  # read only unless the service is on (#141)
-                    lookthrough.asset_classes(self.state, wf, depot, cfg.lookthrough_write)
+                    lookthrough.asset_classes(self.state, wf, depot, cfg.lookthrough_write, cfg.asset_class_lookup)
                 except WealthfolioError:
                     log.exception("look-through: asset classes not checked")
                 self._write_xray_addon(wf, depot, cfg)
@@ -410,7 +410,7 @@ class Syncer:
                          cfg.wealthfolio_fingerprint) as wf:
                 depot = lookthrough.read_depot(wf, self.learned_isins(cfg))
                 written = lookthrough.write_taxonomies(self.state, wf, depot)
-                lookthrough.asset_classes(self.state, wf, depot, write=True)
+                lookthrough.asset_classes(self.state, wf, depot, write=True, lookup=cfg.asset_class_lookup)
                 return written
 
     def update_spending(self) -> bool:

@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.0b7
+
+Asset classes from ESMA's FIRDS register (#185).
+
+- *Länder & Sektoren* service page: *Anlageklasse beim ESMA-Register nachfragen* (off by default). A position that is still without an asset class in Wealthfolio after the fund-name rule is looked up by its ISIN in FIRDS, the public register of the European securities regulator (`registers.esma.europa.eu`; the ISIN is all that is sent). Shares become Equity, debt Fixed income (money market instruments are left out), funds by their principal investment type (equities, bonds, commodities, real estate). Mixed and "other" funds, derivatives, structured products and unknown ISINs stay without a class; nothing is guessed, and an ISIN whose CFI codes disagree gets none.
+- The class is written with 100 % as an automatic value, only when Wealthfolio has that category and the asset has no class at all (yours are never touched). The page names which assets got their class from the name and which from the register.
+- What the register listed is kept per ISIN: asked once, an ISIN it does not list again after 30 days. An answer that is not a clean 200 (5xx, timeout, redirect, odd body) records nothing and ends the pass.
+- *Über* and the network description name the new destination.
+- Checked against the live register: Daimler Truck (shares), iShares Core MSCI World (equity ETF), Vanguard USD Treasury Bond (bond ETF), a Bund (debt), Amundi Core Stoxx Europe 600 (swap ETF, "other": none).
+
 ## 0.1.0b6
 
 Dependency updates.

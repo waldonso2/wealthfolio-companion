@@ -198,6 +198,13 @@ def logos_settings(request: Request, ctx: Ctx, token: str = Form(""), remove_tok
     return redirect(request, "/services/logos", tr(request, "Gespeichert."))
 
 
+@router.post("/services/taxonomies/settings")
+def taxonomies_settings(request: Request, ctx: Ctx, lookup: str = Form("")):
+    on = lookup == "1"
+    ctx.update(lambda c: setattr(c, "asset_class_lookup", on))
+    return redirect(request, "/services/taxonomies", tr(request, "Gespeichert."))
+
+
 @router.post("/services/spending/settings")
 async def spending_settings(request: Request, ctx: Ctx):
     """The cash accounts for the tracker, all brokers in one form (``BrokerConfig.spending``)."""
