@@ -12,6 +12,10 @@ updates:
     # A release must be a week old before it is proposed: time for a compromised one to be pulled.
     cooldown:
       default-days: 7
+    # pydantic requires exactly one pydantic-core: both move in one pull request.
+    groups:
+      pydantic:
+        patterns: ["pydantic", "pydantic-core"]
     ignore:
       - dependency-name: "pytr"
         update-types: ["version-update:semver-major", "version-update:semver-minor", "version-update:semver-patch"]
