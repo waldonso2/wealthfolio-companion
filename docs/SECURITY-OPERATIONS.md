@@ -106,6 +106,10 @@ Repository `waldonso2/wealthfolio-companion` unless noted. Tick in #151; the res
    access tokens*: no classic tokens, fine-grained ones with expiry and single repositories; *Sessions* and *SSH and
    GPG keys*: nothing unknown; the e-mail account with a second factor.
 9. The same rulesets 1-2 in `wealthfolio-importer-addon` and `wealthfolio-companion-addon-xray` (their CI job names).
+   Deliberate difference: there *Require review from Code Owners* stays off - neither repository has a `CODEOWNERS`
+   file, the addons are installed by hand from a release archive and nothing of them runs as root. Read on
+   8 Nov 2026: *Dismiss stale approvals* and *Require conversation resolution* on in both, required checks `ci`,
+   `contract`, `dependency-review / review`, `secrets / gitleaks`, `workflows / zizmor`, tag ruleset `v*` active.
 
 ## 3. Supply-chain and dependency policy (#155)
 
