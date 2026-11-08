@@ -9,6 +9,7 @@
 #   sec12-e2e.sh prepare-auto   install the previous release for the automatic update (scenario 6)
 #   sec12-e2e.sh check-auto     wait (up to 15 minutes) until the automatic update installed the latest release
 #
+# The script itself holds the default test password, so the plain-text search skips files named sec12-e2e.sh.
 # Every result goes to /root/sec12-report.txt (no secrets in it). Environment: PREV (the older release to go
 # back to, default: the release before the latest), SYNTH (the synthetic test password typed in the UI).
 set -uo pipefail
@@ -156,7 +157,7 @@ secrets_case() {
   local hits files
   hits="$( { journalctl --no-pager -q 2>/dev/null; cat /root/sec12-u*.log 2>/dev/null; } | grep -c -F -- "$SYNTH")"
   check "journal holds no '$SYNTH' ($hits hits)" test "$hits" == 0
-  files="$(grep -r -a -l -F -- "$SYNTH" "$BASE" /etc/wealthfolio-companion /run/wealthfolio-companion /tmp /var/log 2>/dev/null)"
+  files="$(grep -r -a -l -F --exclude=sec12-e2e.sh -- "$SYNTH" "$BASE" /etc/wealthfolio-companion /run/wealthfolio-companion /tmp /var/log 2>/dev/null)"
   hits="$(printf '%s' "$files" | grep -c .)"
   check "no file holds '$SYNTH' in plain text ($hits files)" test "$hits" == 0
   [[ -z "$files" ]] || say "      files: $(printf '%s' "$files" | tr '\n' ' ')"
