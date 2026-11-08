@@ -426,3 +426,21 @@ def test_the_image_base_is_pinned_by_digest_in_every_stage():
     """#155: Dependabot (docker) reads the FROM lines - both stages name the same base image by its digest."""
     bases = re.findall(r"^FROM (\S+)", (ROOT / "Dockerfile").read_text(), re.M)
     assert len(bases) == 2 and len(set(bases)) == 1 and re.search(r"@sha256:[0-9a-f]{64}$", bases[0])
+
+
+def test_the_documented_actions_allow_list_covers_every_action_the_workflows_use():
+    """A ruleset that allows only listed actions stops the whole run (startup_failure) if one is missing - also an
+    action a quality-kit reusable workflow uses (zizmor-action)."""
+    import re
+
+    text = (ROOT / "docs" / "SECURITY-OPERATIONS.md").read_text()
+    listed = re.search(r"the list `([^`]+)`", text).group(1)
+    allowed = [x.strip().removesuffix("@*") for x in listed.split(",")]
+    used = set(re.findall(r"uses: *([A-Za-z][\w-]*/[\w.-]+)", "".join(
+        p.read_text() for p in (ROOT / ".github" / "workflows").glob("*.yml"))))
+    used |= {"zizmorcore/zizmor-action", "actions/dependency-review-action"}  # inside quality-kit v1
+    for action in sorted(used):
+        owner = action.split("/")[0]
+        if owner in ("actions", "github", "waldonso2"):  # created by GitHub / the owner's own
+            continue
+        assert any(action == a or (a.endswith("/*") and owner == a[:-2]) for a in allowed), action
