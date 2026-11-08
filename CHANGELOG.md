@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.0b4
+
+Downloads of a release are retried on short GitHub errors.
+
+- Install and update: every download of the release (`SHA256SUMS`, the archive, the release lookup) and of the bootstrap verifier is retried up to three times (`curl --retry 3`), so a single "504 Gateway Timeout" of GitHub no longer stops an install. The check of the files is unchanged.
+- `scripts/sec12-e2e.sh` (#158): the end-to-end test of install, update, rollback, reboot and automatic update on a disposable container, with a report.
+- The documented Actions allow-list covers every action the workflows use (`zizmorcore/zizmor-action`); `test_packaging` checks it.
+
 ## 0.1.0b3
 
 Trade Republic dividend reinvestments are booked.
