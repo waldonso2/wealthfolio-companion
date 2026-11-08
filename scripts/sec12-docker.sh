@@ -50,9 +50,9 @@ previous() {
   curl -fsSL --retry 6 --proto '=https' "https://api.github.com/repos/$REPO/releases?per_page=5" |
     grep -o '"tag_name": *"v[^"]*"' | sed -n '2s/.*"v\([^"]*\)"/\1/p'
 }
-datafiles() {  # the sealed files of the data volume; SQLite's -wal/-shm come and go
+datafiles() {  # the sealed files of the data volume; SQLite's -wal/-shm and the lock files come and go
   docker run --rm -v sec12docker_companion-data:/data:ro --entrypoint sh "$(running_image)" -c \
-    "cd /data && find . -type f ! -name 'before-restore-*' ! -name '*-wal' ! -name '*-shm' | LC_ALL=C sort | tr '\n' ' '"
+    "cd /data && find . -type f ! -name 'before-restore-*' ! -name '*-wal' ! -name '*-shm' ! -name '*.lock' | LC_ALL=C sort | tr '\n' ' '"
 }
 
 install_cosign() {  # the README's pinned cosign 3.0.6 and the checksums of sigstore's own installer
@@ -132,8 +132,8 @@ scenario_13() {  # everything else is refused
     --certificate-github-workflow-repository "$REPO" --certificate-github-workflow-ref refs/heads/main
     --certificate-github-workflow-trigger push)
   check "control: cosign's own release image verifies with ITS identity (so the next check proves the policy)" \
-    cosign verify --certificate-identity-regexp '^https://github.com/sigstore/cosign/' \
-      --certificate-oidc-issuer https://token.actions.githubusercontent.com ghcr.io/sigstore/cosign/cosign:v3.0.6
+    cosign verify --certificate-identity keyless@projectsigstore.iam.gserviceaccount.com \
+      --certificate-oidc-issuer https://accounts.google.com ghcr.io/sigstore/cosign/cosign:v3.0.6
   check "an image signed by someone else is refused (the same image, our policy)" \
     bash -c "! cosign verify $(printf '%q ' "${policy[@]}") ghcr.io/sigstore/cosign/cosign:v3.0.6 >/dev/null 2>&1"
   check "an unsigned image is refused (alpine)" \
