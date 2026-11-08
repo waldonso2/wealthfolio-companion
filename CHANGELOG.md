@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.0b6
+
+Dependency updates.
+
+- Runtime: starlette 1.9.0 → 1.10.0 (the web framework under the UI) and opentelemetry-api 1.45.1 → 1.45.2, both at their locked, hash-checked versions.
+- Development and CI only: mypy 2.4.1, ruff 0.17.3.
+- `pydantic-core` stays at 2.50.1: `pydantic` 2.14.1 requires exactly that version; both move with the next `pydantic` release.
+
 ## 0.1.0b5
 
 Install and update survive longer GitHub outages; the installer shows its own name.
