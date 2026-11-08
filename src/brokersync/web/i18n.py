@@ -195,12 +195,13 @@ EN: dict[str, str] = {
     "Datenschutz:": "Privacy:",
     "Der Dienst sendet Daten nur an deine Broker und Banken (bei PSD2-Banken über Enable Banking), an dein "
     "Wealthfolio, an deinen ntfy-Server (wenn Benachrichtigungen eingerichtet sind), an die Seiten der "
-    "ETF-Anbieter und an Finanzfluss (die ISINs deiner Fonds), an logo.dev (ISINs, nur wenn Logos an ist) und "
+    "ETF-Anbieter und an Finanzfluss (die ISINs deiner Fonds), an logo.dev (ISINs, nur wenn Logos an ist), an das "
+    "ESMA-Register FIRDS (ISINs, nur wenn die Anlageklassen-Abfrage an ist) und "
     "an GitHub (Suche nach Updates, Download der Scalable CLI) – sonst nirgendwohin.":
         "The service sends data only to your brokers and banks (PSD2 banks through Enable Banking), your "
         "Wealthfolio, your ntfy server (when notifications are set up), the ETF issuers' sites and Finanzfluss "
-        "(your funds' ISINs), logo.dev (ISINs, only while Logos is on) and GitHub (update check, download of the "
-        "Scalable CLI) - nowhere else.",
+        "(your funds' ISINs), logo.dev (ISINs, only while Logos is on), ESMA's FIRDS register (ISINs, only while "
+        "the asset-class lookup is on) and GitHub (update check, download of the Scalable CLI) - nowhere else.",
     # ── common words ──
     "Speichern": "Save",
     "Gespeichert.": "Saved.",
@@ -1483,6 +1484,21 @@ EN: dict[str, str] = {
     "echte Aufteilung liefert): {names}.":
         "Asset class from the fund's name (as Wealthfolio does itself; Wealthfolio replaces it once a quote provider "
         "gives the real breakdown): {names}.",
+    "Anlageklasse aus dem ESMA-Register FIRDS (grob: Aktie, Anleihe, Rohstoff, Fonds nach Hauptanlageart; ersetzt "
+    "Wealthfolio, sobald ein Kursanbieter die echte Aufteilung liefert): {names}.":
+        "Asset class from ESMA's FIRDS register (rough: share, bond, commodity, fund by principal investment type; "
+        "Wealthfolio replaces it once a quote provider gives the real breakdown): {names}.",
+    "Anlageklasse beim ESMA-Register nachfragen": "Ask ESMA's register for the asset class",
+    "Für eine Position ohne Anlageklasse in Wealthfolio, deren Fondsname sie nicht verrät, fragt der Dienst im "
+    "öffentlichen Register FIRDS der europäischen Wertpapieraufsicht (registers.esma.europa.eu) nach dem "
+    "Instrumententyp. Nur die ISIN geht dorthin - keine Bestände, Beträge oder Konten. Aktie, Anleihe, Rohstoff, "
+    "Immobilie und Fonds nach Hauptanlageart werden zugeordnet; Mischfonds, Derivate und alles, was das Register "
+    "nicht kennt, bleiben ohne Anlageklasse. Eine Zuordnung von dir bleibt unangetastet.":
+        "For a position without an asset class in Wealthfolio whose fund name doesn't tell, the service asks the "
+        "public FIRDS register of the European securities regulator (registers.esma.europa.eu) for the instrument "
+        "type. Only the ISIN goes there - no holdings, amounts or accounts. Shares, bonds, commodities, real estate "
+        "and funds by principal investment type are assigned; mixed funds, derivatives and anything the register "
+        "doesn't know stay without an asset class. An assignment of yours is left alone.",
     "{n} Positionen ohne Anlageklasse in Wealthfolio": "{n} positions without an asset class in Wealthfolio",
     "Ohne Anlageklasse in Wealthfolio: {n}": "Without an asset class in Wealthfolio: {n}",
     "Wealthfolio zählt sie in der Zielallokation unter „Unknown“. Es holt die Aufteilung selbst, sobald das "

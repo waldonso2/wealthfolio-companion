@@ -17,9 +17,25 @@
   </tbody>
 </table></div>
 {% else %}<p class="muted">{{ _("Noch kein Fonds mit Positionsliste - siehe X-Ray.") }}</p>{% endif %}
-{% if classes and classes.named %}<p class="muted">{{ _("Anlageklasse aus dem Fondsnamen (wie Wealthfolio selbst; ersetzt Wealthfolio, sobald ein Kursanbieter die echte Aufteilung liefert): {names}.", names=classes.named.values() | map(attribute="name") | sort | join(", ")) }}</p>{% endif %}
+{% if classes and classes.named %}
+{% set by_name = classes.named.values() | rejectattr("from", "equalto", "firds") | map(attribute="name") | sort | list %}
+{% set by_firds = classes.named.values() | selectattr("from", "equalto", "firds") | map(attribute="name") | sort | list %}
+{% if by_name %}<p class="muted">{{ _("Anlageklasse aus dem Fondsnamen (wie Wealthfolio selbst; ersetzt Wealthfolio, sobald ein Kursanbieter die echte Aufteilung liefert): {names}.", names=by_name | join(", ")) }}</p>{% endif %}
+{% if by_firds %}<p class="muted">{{ _("Anlageklasse aus dem ESMA-Register FIRDS (grob: Aktie, Anleihe, Rohstoff, Fonds nach Hauptanlageart; ersetzt Wealthfolio, sobald ein Kursanbieter die echte Aufteilung liefert): {names}.", names=by_firds | join(", ")) }}</p>{% endif %}
+{% endif %}
 {% if classes and classes.missing %}<p class="muted"><a href="/check#asset-classes">{{ _("{n} Positionen ohne Anlageklasse in Wealthfolio", n=classes.missing | length) }}</a></p>{% endif %}
 <p class="muted">{{ _("Ersetzt nur Yahoos automatische Werte und die eigenen des Dienstes, nie deine eigenen Zuordnungen. Was keiner Kategorie zuzuordnen ist, bleibt nicht zugeordnet.") }}</p>
+{% endblock %}
+{% block settings %}
+<div class="card">
+  <h2>{{ _("Einstellungen") }}</h2>
+  <form method="post" action="/services/taxonomies/settings">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label class="check"><input type="checkbox" name="lookup" value="1"{% if cfg.asset_class_lookup %} checked{% endif %}> {{ _("Anlageklasse beim ESMA-Register nachfragen") }}</label>
+    <div class="muted">{{ _("Für eine Position ohne Anlageklasse in Wealthfolio, deren Fondsname sie nicht verrät, fragt der Dienst im öffentlichen Register FIRDS der europäischen Wertpapieraufsicht (registers.esma.europa.eu) nach dem Instrumententyp. Nur die ISIN geht dorthin - keine Bestände, Beträge oder Konten. Aktie, Anleihe, Rohstoff, Immobilie und Fonds nach Hauptanlageart werden zugeordnet; Mischfonds, Derivate und alles, was das Register nicht kennt, bleiben ohne Anlageklasse. Eine Zuordnung von dir bleibt unangetastet.") }}</div>
+    <div class="actions"><button>{{ _("Speichern") }}</button></div>
+  </form>
+</div>
 {% endblock %}
 {% block actions %}{% from "_service_parts.html" import run, remove with context %}
 {{ run(_("Jetzt eintragen")) }}

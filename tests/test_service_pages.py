@@ -141,3 +141,15 @@ def test_positions_without_asset_class_are_shown_on_pruefung_and_the_services_pa
     page = client.get("/services/taxonomies").text
     assert "Anlageklasse aus dem Fondsnamen" in page and "Example Govt Bond ETF" in page
     assert 'href="/check#asset-classes"' in page
+
+
+def test_the_asset_class_lookup_is_off_until_switched_on_on_the_taxonomies_page(tmp_path):
+    client, token, _ = _client(tmp_path)
+    page = client.get("/services/taxonomies").text
+    assert 'name="lookup"' in page and "checked" not in page.split('name="lookup"')[1].split(">")[0]
+    assert not config_mod.load(tmp_path).asset_class_lookup
+    r = client.post("/services/taxonomies/settings", data={"csrf": token, "lookup": "1"}, follow_redirects=False)
+    assert r.status_code == 303 and config_mod.load(tmp_path).asset_class_lookup
+    assert "checked" in client.get("/services/taxonomies").text.split('name="lookup"')[1].split(">")[0]
+    client.post("/services/taxonomies/settings", data={"csrf": token}, follow_redirects=False)
+    assert not config_mod.load(tmp_path).asset_class_lookup

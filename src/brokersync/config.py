@@ -69,6 +69,9 @@ class Config:
     lookthrough_enabled: bool = False
     # Write the funds' countries and sectors into Wealthfolio's taxonomies (replaces only Yahoo's AUTO values).
     lookthrough_write: bool = False
+    # With the taxonomies service on: ask ESMA's FIRDS (the ISIN only) for the asset class of a position that has none
+    # (brokersync.firds, #185).
+    asset_class_lookup: bool = False
     xray_limits: dict[str, str] = field(default_factory=dict)
     # Page FIRE: the user's inputs as text (fire.Inputs' fields); empty capital / gain share: from Wealthfolio.
     fire: dict[str, str] = field(default_factory=dict)

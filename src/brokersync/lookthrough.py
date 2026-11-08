@@ -35,7 +35,7 @@ from xml.etree import ElementTree
 
 import httpx
 
-from . import costs, meta_keys, xray
+from . import costs, firds, meta_keys, xray
 from .assets import valid_isin
 from .logos import isin_of
 from .model import when
@@ -1351,14 +1351,29 @@ def name_class(name: str) -> str | None:
     return "COMMODITIES" if any(w in n for w in METALS) and any(w in n for w in PHYSICAL) else None
 
 
-def asset_classes(state: State, wf, depot: Depot, write: bool) -> dict:
+def firds_class(state: State, isin: str) -> str | None:
+    """The class ESMA's FIRDS names for ``isin`` (``firds.asset_class`` of its CFI codes). What the register
+    listed is kept, so a known ISIN is never asked twice; one it does not list is asked again after
+    ``firds.RETRY_DAYS``. ``firds.Unavailable`` when the register doesn't answer (nothing is kept)."""
+    key = meta_keys.FIRDS(isin)
+    entry = json.loads(state.meta(key) or "null")
+    if entry and (entry["codes"] or _days(entry["at"]) < firds.RETRY_DAYS):
+        return firds.asset_class(entry["codes"])
+    codes = firds.cfi_codes(isin)
+    state.set_meta(key, json.dumps({"codes": codes, "at": now()}))
+    time.sleep(firds.PAUSE)
+    return firds.asset_class(codes)
+
+
+def asset_classes(state: State, wf, depot: Depot, write: bool, lookup: bool = False) -> dict:
     """Positions Wealthfolio has no asset class for (its allocation counts them as "Unknown"), kept for *Prüfung*
     and the service's page. With ``write`` a fund whose name names its class (``name_class``) gets it with 100 %
-    and ``source: AUTO``, so Wealthfolio replaces it with a quote provider's real breakdown; an asset with any
-    asset class - the user's above all - is never touched."""
+    and ``source: AUTO``, so Wealthfolio replaces it with a quote provider's real breakdown; with ``lookup`` one
+    that stays without asks ESMA's FIRDS (``firds_class``, the ISIN only). An asset with any asset class - the
+    user's above all - is never touched."""
     known = {str(c.get("id")) for c in wf.taxonomy_categories(ASSET_CLASSES)} if write else set()
     before = json.loads(state.meta(meta_keys.ASSET_CLASSES()) or "{}").get("named", {})
-    missing, named = [], {}
+    missing, named, asking = [], {}, write and lookup
     for p in depot.positions:
         current = [a for a in wf.asset_assignments(p["id"]) if a.get("taxonomyId") == ASSET_CLASSES]
         if current:
@@ -1367,10 +1382,17 @@ def asset_classes(state: State, wf, depot: Depot, write: bool) -> dict:
                 named[p["id"]] = before[p["id"]]  # still ours from the name: keep showing where it came from
             continue
         cls = name_class(p["name"]) if is_fund(p, status(state, p["id"])) else None
+        origin = "name"
+        if cls is None and asking and p["isin"]:
+            try:
+                cls, origin = firds_class(state, p["isin"]), "firds"
+            except firds.Unavailable as e:
+                log.info("FIRDS unavailable (%s) - the rest is asked at the next pass", e)
+                asking = False
         if write and cls in known:
             wf.replace_assignments(p["id"], ASSET_CLASSES, [{"assetId": p["id"], "taxonomyId": ASSET_CLASSES,
                                                               "categoryId": cls, "weight": 10000, "source": "AUTO"}])
-            named[p["id"]] = {"name": p["name"], "class": cls}
+            named[p["id"]] = {"name": p["name"], "class": cls, "from": origin}
             continue
         missing.append({"id": p["id"], "name": p["name"], "isin": p["isin"]})
     found = {"missing": missing, "named": named, "at": now()}
