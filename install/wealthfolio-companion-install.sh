@@ -26,7 +26,7 @@ valid_version() {
 # latest_release: the version GitHub's releases/latest redirects to (no API, no token).
 latest_release() {
   local url
-  url="$(curl -fsSI --retry 3 --retry-delay 2 --proto '=https' -o /dev/null -w '%{redirect_url}' \
+  url="$(curl -fsSI --retry 6 --proto '=https' -o /dev/null -w '%{redirect_url}' \
     https://github.com/waldonso2/wealthfolio-companion/releases/latest)" || return 1
   url="${url#https://github.com/waldonso2/wealthfolio-companion/releases/tag/v}"
   valid_version "$url" || { echo "GitHub named no valid latest release." >&2; return 1; }
@@ -44,8 +44,8 @@ fetch_release() {
   name="wealthfolio-companion-$version.tar.gz"
   base="https://github.com/waldonso2/wealthfolio-companion/releases/download/v$version"
   (umask 077 && mkdir "$dir") || return 1
-  if ! curl -fsSL --retry 3 --retry-delay 2 --proto '=https' "$base/SHA256SUMS" -o "$dir/SHA256SUMS" ||
-    ! curl -fsSL --retry 3 --retry-delay 2 --proto '=https' "$base/$name" -o "$dir/$name"; then
+  if ! curl -fsSL --retry 6 --proto '=https' "$base/SHA256SUMS" -o "$dir/SHA256SUMS" ||
+    ! curl -fsSL --retry 6 --proto '=https' "$base/$name" -o "$dir/$name"; then
     echo "Downloading release $version failed." >&2
     return 1
   fi
@@ -66,8 +66,8 @@ fetch_release() {
 bootstrap_verifier() {
   local dir="$1" main="${COMMUNITY_SCRIPTS_URL:-https://raw.githubusercontent.com/waldonso2/wealthfolio-companion/main}"
   (umask 077 && mkdir "$dir") &&
-    curl -fsSL --retry 3 --retry-delay 2 --proto '=https' "$main/src/brokersync/provenance.py" -o "$dir/provenance.py" &&
-    curl -fsSL --retry 3 --retry-delay 2 --proto '=https' "$main/requirements-verify.txt" -o "$dir/requirements-verify.txt" &&
+    curl -fsSL --retry 6 --proto '=https' "$main/src/brokersync/provenance.py" -o "$dir/provenance.py" &&
+    curl -fsSL --retry 6 --proto '=https' "$main/requirements-verify.txt" -o "$dir/requirements-verify.txt" &&
     python3 -m venv "$dir/venv" &&
     "$dir/venv/bin/pip" install --quiet --disable-pip-version-check --no-cache-dir --require-hashes \
       --only-binary :all: -r "$dir/requirements-verify.txt"

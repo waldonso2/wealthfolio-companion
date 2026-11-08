@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.0b5
+
+Install and update survive longer GitHub outages; the installer shows its own name.
+
+- Install and update: the downloads of the release and of the bootstrap verifier are retried up to six times with growing waits (`curl --retry 6`, about a minute in all) instead of three times after 2 s. A test install failed on 503/504 answers that lasted longer than the first retries; the check of the files is unchanged.
+- The Proxmox installer's banner reads *Wealthfolio Companion* instead of the engine's "Community Scripts" fallback.
+
 ## 0.1.0b4
 
 Downloads of a release are retried on short GitHub errors.
