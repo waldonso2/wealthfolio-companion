@@ -56,12 +56,12 @@ def retry_after(response: httpx.Response, default: float, cap: float = MAX_WAIT,
 
 
 def with_backoff(send: Callable[[], httpx.Response], *, waits: Sequence[float] = WAITS,
-                 cap: float = MAX_WAIT) -> httpx.Response:
-    """``send()``; on 429/503 wait (Retry-After, else the next of ``waits``, plus up to 20 % jitter) and send
-    again; after the last wait the answer as it is."""
+                 cap: float = MAX_WAIT, statuses: Sequence[int] = STATUSES) -> httpx.Response:
+    """``send()``; on 429/503 (or ``statuses``) wait (Retry-After, else the next of ``waits``, plus up to 20 %
+    jitter) and send again; after the last wait the answer as it is."""
     r = send()
     for attempt, wait in enumerate(waits, 1):
-        if not limited(r):
+        if r.status_code not in statuses:
             return r
         pause = min(retry_after(r, wait, cap) * (1 + random.random() * 0.2), cap)  # noqa: S311 - jitter, no secret
         # The path only: query parameters can carry tokens.

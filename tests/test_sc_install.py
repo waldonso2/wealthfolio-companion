@@ -53,8 +53,13 @@ class Release:
         return (f"untrusted comment: test\n{base64.b64encode(b'ED' + self.keyid + sig).decode()}\n"
                 f"trusted comment: {trusted}\n{base64.b64encode(glob).decode()}\n").encode()
 
-    def client(self) -> httpx.Client:
+    def client(self, fail: int = 0) -> httpx.Client:
+        calls = {}
+
         def handle(request: httpx.Request) -> httpx.Response:
+            calls[request.url.path] = calls.get(request.url.path, 0) + 1
+            if calls[request.url.path] <= fail:
+                return httpx.Response(504)
             if request.url.path.endswith("/releases/latest"):
                 return httpx.Response(302, headers={
                     "location": f"https://github.com/ScalableCapital/scalable-cli/releases/tag/{self.tag}"})
@@ -89,3 +94,12 @@ def test_a_tampered_release_installs_nothing(tmp_path, monkeypatch, tamper):
 def test_no_build_for_the_architecture(tmp_path):
     with pytest.raises(InstallError, match="no Linux build"):
         install(tmp_path, http=Release().client(), machine="riscv64")
+
+
+def test_gateway_errors_of_github_are_tried_again(tmp_path, monkeypatch, _no_rate_limit_waits):
+    release = Release()
+    monkeypatch.setattr(sc_install, "PUBLIC_KEY", release.public)
+    assert install(tmp_path, http=release.client(fail=2), machine="x86_64") == ("v9.9.9", True)
+    assert _no_rate_limit_waits
+    with pytest.raises(InstallError, match="HTTP 504"):
+        install(tmp_path / "other", http=release.client(fail=9), machine="x86_64")

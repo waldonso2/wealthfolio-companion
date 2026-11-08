@@ -23,10 +23,20 @@ import httpx
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
+from brokersync import ratelimit
+
 REPO = "https://github.com/ScalableCapital/scalable-cli"
 # Scalable Capital's minisign release signing key (README of scalable-cli).
 PUBLIC_KEY = "RWRKuuSASIzbSYpuU5gdXeTkXirJBl5+XVXLP6E60hBUUKZ5HPIGjV8b"
 ARCH = {"x86_64": "x86_64", "amd64": "x86_64", "aarch64": "aarch64", "arm64": "aarch64"}
+
+
+# GitHub's release pages answer 5xx now and then; a read is safe to repeat.
+RETRY = (429, 500, 502, 503, 504)
+
+
+def _get(http: httpx.Client, url: str, *, follow_redirects: bool) -> httpx.Response:
+    return ratelimit.with_backoff(lambda: http.get(url, follow_redirects=follow_redirects), statuses=RETRY)
 
 
 class InstallError(Exception):
@@ -56,7 +66,7 @@ def verify_minisign(message: bytes, signature: str, public_key: str | None = Non
 
 
 def latest_tag(http: httpx.Client) -> str:
-    r = http.get(f"{REPO}/releases/latest", follow_redirects=False)
+    r = _get(http, f"{REPO}/releases/latest", follow_redirects=False)
     m = re.search(r"/releases/tag/(v[\w.\-]+)$", r.headers.get("location", ""))
     if not m:
         raise InstallError(f"Latest Scalable CLI release not found (HTTP {r.status_code}).")
@@ -86,7 +96,7 @@ def install(directory: Path, *, http: httpx.Client | None = None, machine: str |
         return tag, False
 
     def get(name: str) -> bytes:
-        r = http.get(f"{REPO}/releases/download/{tag}/{name}", follow_redirects=True)
+        r = _get(http, f"{REPO}/releases/download/{tag}/{name}", follow_redirects=True)
         if r.status_code != 200:
             raise InstallError(f"Download of {name} failed (HTTP {r.status_code}).")
         return r.content

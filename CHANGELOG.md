@@ -5,6 +5,7 @@
 Downloads of a release are retried on short GitHub errors.
 
 - Install and update: every download of the release (`SHA256SUMS`, the archive, the release lookup) and of the bootstrap verifier is retried up to three times (`curl --retry 3`), so a single "504 Gateway Timeout" of GitHub no longer stops an install. The check of the files is unchanged.
+- Scalable's CLI (`install-sc`, also in the Docker image build): the release lookup and every download are retried on 429 and 5xx answers of GitHub (`ratelimit.with_backoff`), so a short outage no longer leaves the installation without `sc`.
 - `scripts/sec12-e2e.sh` (#158): the end-to-end test of install, update, rollback, reboot and automatic update on a disposable container, with a report.
 - The documented Actions allow-list covers every action the workflows use (`zizmorcore/zizmor-action`); `test_packaging` checks it.
 
