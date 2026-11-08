@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.1.0b3
+
+Trade Republic dividend reinvestments are booked.
+
+- Trade Republic (#188): the debit of a dividend reinvestment (`SSP_CORPORATE_ACTION_INSTRUMENT`, *Reinvestition der Dividende*) is booked as a BUY of the new shares paid from the cash account, like the CSV import does. pytr reads no share count for it; the service takes it from the event's *Aktien* detail row (German notation) and books nothing when the row, the ISIN or the debit is missing - the event stays in *Unbekannt*. The cash leg of the reinvestment (`SSP_CORPORATE_ACTION_CASH`, which pytr labels `TAXES` only as its fallback) and the other reports of this round - the reverse split into a new ISIN (#186, #187) and Deutsche Bank's *Kapitaltransaktion* spin-off (#190, #191) - stay unknown: the service knows neither the new share count and ISIN nor the cost basis, and guesses nothing.
+
+## 0.1.0b2
+
+Install engine pin moved, broker setup reachable from the broker pages, five fixes from a code audit.
+
+- Install engine (#179): the pin on community-scripts/core moves to `59574c3` (11 commits reviewed: host probes, spinner and error-reporting fixes, telemetry payload v3 - still opt-in through the diagnostics setting - and `setup_java_memory`; nothing fetched or executed outside the pinned commit).
+- UI (#180): the gear of *Broker-Sync* on *Dienste* opens the broker list (`/brokers`); the *Broker* page has an *Add broker* button next to *Alle abrufen*; the duplicate *Broker einrichten* link on the Broker-Sync service page is gone.
+- Audit fixes (#182): the dates the forms check (not in the future, the date picker's maximum) use German time instead of the container's UTC clock, so today's date is accepted after midnight; a broker's login session is stored even when closing its adapter fails (no lost tokens or lock-out counters); finding the sync's own references among the existing activities no longer scans every activity for each transaction; a failing job message can no longer leave every later job waiting; downloads of fund lists no longer copy the whole buffer for each chunk.
+
 ## 0.1.0b1
 
 Features: DKB depot transactions booked, comdirect dividends with their tax, one rule for rate limits, more sector names mapped, asset classes for funds without one.

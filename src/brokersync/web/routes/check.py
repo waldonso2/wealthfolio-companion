@@ -130,7 +130,7 @@ async def check_opening(request: Request, ctx: Ctx, key: str):
     except ValueError:  # inputs.Invalid too
         return redirect(request, "/check", tr(request, "Bitte Kaufdatum, Stückzahl, Kurs und Gebühr als Zahlen "
                                                        "angeben."), "error")
-    if shares <= 0 or price <= 0 or fee < 0 or bought > date.today() or not isin:
+    if shares <= 0 or price <= 0 or fee < 0 or bought > inputs.today() or not isin:
         return redirect(request, "/check", tr(request, "Stückzahl und Kurs müssen größer 0 sein, die Gebühr "
                                                        "mindestens 0, das Kaufdatum darf nicht in der Zukunft liegen."),
                         "error")

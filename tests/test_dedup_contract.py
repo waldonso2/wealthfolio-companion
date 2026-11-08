@@ -60,6 +60,20 @@ def test_another_transactions_activity_of_the_sync_is_never_a_match():
     assert index.find("[SYNC x:2]", payload) == "i1"
 
 
+def test_activities_with_the_reference_are_used_also_when_they_come_after_a_find():
+    def act(i, comment):
+        return {"id": i, "accountId": "c", "activityType": "DEPOSIT", "date": "2026-03-01T08:00:00Z",
+                "amount": "5", "currency": "EUR", "comment": comment}
+
+    payload = [{"accountId": "c", "activityType": "DEPOSIT", "activityDate": "2026-03-01T09:00:00Z", "amount": "5",
+                "currency": "EUR"}]
+    index = ExistingIndex([act("a", "import [SYNC x:1]")])
+    assert index.find("[SYNC x:1]", payload) is None and index.used == {"a"}
+    index.existing.append(act("b", "leg [SYNC x:2]"))  # the sync appends what it creates during a run
+    assert index.find("[SYNC x:2]", payload) is None and index.used == {"a", "b"}
+    assert index.find("[SYNC x:3]", payload) is None and index.used == {"a", "b"}  # no such reference: nothing new
+
+
 def test_settlement_matching_uses_direction_and_each_activity_only_once():
     from datetime import UTC, datetime
     from decimal import Decimal

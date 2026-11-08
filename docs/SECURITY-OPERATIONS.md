@@ -84,8 +84,8 @@ Repository `waldonso2/wealthfolio-companion` unless noted. Tick in #151; the res
    - No environment secrets are needed.
 4. **Actions** - *Settings → Actions → General*:
    - *Actions permissions*: *Allow waldonso2, and select non-waldonso2, actions and reusable workflows* with
-     *Allow actions created by GitHub* on and the list `docker/*, sigstore/cosign-installer@*, ossf/scorecard-action@*, zizmorcore/zizmor-action@*` (the last is used by
-     quality-kit's `workflows.yml`; a missing entry stops the whole CI run with *startup_failure*);
+     *Allow actions created by GitHub* on and the list `docker/*, sigstore/cosign-installer@*, ossf/scorecard-action@*, zizmorcore/zizmor-action@*` (the last one runs
+     in quality-kit's `workflows` job: without it CI ends in `startup_failure` and the required checks never start);
      *Require actions to be pinned to a full-length commit SHA*: on.
    - *Workflow permissions*: *Read repository contents and packages permissions* (the default token read-only; the
      workflows ask for more per job). *Allow GitHub Actions to create and approve pull requests*: on only if you want
@@ -184,6 +184,23 @@ release only with an attestation of `release.yml@refs/heads/main` on a GitHub-ho
   new releases from a second account) detects a release you did not make.
 - **The anchor of a new install** stays `ct/` from `main` over HTTPS (OPERATIONS.md, *Trust chain*); checking the
   files of a release tag first is documented there.
+
+### Release watch by mail (second account, no code)
+
+A release you did not make is the one thing a takeover cannot avoid: the workflow run, the GitHub release and the
+Rekor entry all exist. The cheapest alarm lives **outside the account an attacker would take**:
+
+1. Create (or use) a second GitHub account with its own e-mail address and a second factor of its own, not linked to
+   `waldonso2` and not a collaborator with write access.
+2. On `waldonso2/wealthfolio-companion`: **Watch → Custom → Releases**. GitHub then mails that account for every new
+   release. Check *Settings → Notifications → Email* of that account (the *Watching* row must include e-mail).
+3. Rule for yourself: every mail must match a release you started. One you did not start means: switch automatic
+   updates off on your installations, check the attestation of the release against the Rekor log
+   (`search.sigstore.dev`, search by the release's SHA-256), and secure the account (parts 1-2 of #150).
+
+Not covered: someone who also takes the second account, or who deletes the release before the mail is read (the mail
+stays). A Rekor-side monitor (sigstore's `rekor-monitor`, run on a host that is not GitHub) would add the log as
+source; it is not built - it needs a machine of yours that runs it.
 
 What reduces the remaining risk, in order of effort: parts 1-2 of #150 (account, rulesets - the checklist above), the
 environment `release` with you as required reviewer, a Rekor/new-release watch outside GitHub, and - not built - a

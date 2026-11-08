@@ -2352,10 +2352,14 @@
   },
   {
    "id": "00000000-0000-4000-8000-000000000018",
-   "kind": "UNKNOWN",
+   "kind": "BUY",
    "datetime": "2026-09-18T09:30:00+00:00",
    "currency": "EUR",
-   "net": "0",
+   "net": "7.5",
+   "isin": "GB00BP6MXD84",
+   "name": "Shell",
+   "shares": "0.25",
+   "gross": "7.5",
    "label": "Reinvestition der Dividende",
    "raw_type": "SSP_CORPORATE_ACTION_INSTRUMENT"
   },

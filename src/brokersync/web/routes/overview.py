@@ -185,14 +185,16 @@ def launch(ctx: AppContext, name: str, work: Callable[[str], tuple[str, str] | N
 
     def body() -> None:
         try:
-            result = work(lang)
-        except Exception:
-            log.exception("%s failed", name)
-            result = (translate("{job} ist fehlgeschlagen - siehe Protokoll.", lang, job=translate(name, lang)),
-                      "error")
-        if result:
-            ctx.job_result = {"text": redact.redact(result[0]), "level": result[1]}
-        ctx.running.clear()
+            try:
+                result = work(lang)
+            except Exception:
+                log.exception("%s failed", name)
+                result = (translate("{job} ist fehlgeschlagen - siehe Protokoll.", lang, job=translate(name, lang)),
+                          "error")
+            if result:
+                ctx.job_result = {"text": redact.redact(result[0]), "level": result[1]}
+        finally:  # whatever goes wrong above: the next job must not wait for this one for ever
+            ctx.running.clear()
 
     if ctx.run_in_thread:
         threading.Thread(target=body, daemon=True).start()

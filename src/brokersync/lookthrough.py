@@ -590,12 +590,12 @@ class Sources:
                     raise SourceError(self.limited)
                 if r.status_code >= 400:
                     raise SourceError(f"{source}: HTTP {r.status_code}")
-                data = b""
+                data = bytearray()  # not bytes +=: that copies the whole buffer for every chunk
                 for chunk in r.iter_bytes():
                     data += chunk
                     if len(data) > MAX_BYTES:
                         raise SourceError(f"{source}: Antwort größer als {MAX_BYTES // 1024 // 1024} MB")
-                return data
+                return bytes(data)
         except httpx.HTTPError as e:
             raise SourceError(f"{source} ist nicht erreichbar ({type(e).__name__}).") from e
 

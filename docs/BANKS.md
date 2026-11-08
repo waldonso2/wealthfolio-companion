@@ -146,7 +146,8 @@ The service reads your Trade Republic timeline through the app's unofficial inte
 | Worthless position removed | Sale at zero in the securities account, with no cash movement |
 | Deposit, card refund | Deposit (`DEPOSIT`) |
 | Card payment, transfer | Withdrawal (`WITHDRAWAL`) or transfer to your own account if a transfer rule matches |
-| Stock split, spin-off, exchange, dividend reinvestment, portfolio transfer, private markets | **Not booked**; reported as unknown. Book manually or import via CSV |
+| Dividend reinvestment | Buy of the new shares in the securities account, paid from the cash account; the share count comes from the event's details - without it the event is reported as unknown. The cash leg of the reinvestment is reported as unknown |
+| Stock split, spin-off, exchange, portfolio transfer, private markets | **Not booked**; reported as unknown. Book manually or import via CSV |
 
 Informational events (order created/cancelled, documents, address change, etc.) and cancelled transactions are ignored.
 

@@ -93,11 +93,49 @@ def test_tax_charge_referral_bonus_and_worthless_book_like_the_csv_import():
     assert (a["accountId"], a["activityType"], a["quantity"], a["amount"]) == ("p", "SELL", "3", "0")
 
 
+def test_dividend_reinvestment_is_a_buy_paid_from_cash_with_the_share_count_of_the_details():
+    (buy, transfer_out, transfer_in) = sorted(to_activities(by_raw("SSP_CORPORATE_ACTION_INSTRUMENT"), "tr",
+                                                           Accounts("c", "p")), key=lambda a: a["activityType"])
+    assert (buy["accountId"], buy["activityType"], buy["quantity"], buy["amount"]) == ("p", "BUY", "0.25", "7.5")
+    assert {a["accountId"] for a in (transfer_out, transfer_in)} == {"c", "p"}  # funded from the cash account
+
+
+def _reinvestment(sections, value=-23.2):
+    return {"id": "r1", "timestamp": "2025-03-26T08:00:00.000+0000", "title": "Shell", "icon": "logos/GB00BP6MXD84/v2",
+            "subtitle": "Reinvestition der Dividende", "status": "EXECUTED",
+            "eventType": "SSP_CORPORATE_ACTION_INSTRUMENT", "details": {"id": "r1", "sections": sections},
+            "amount": {"currency": "EUR", "value": value, "fractionDigits": 2}}
+
+
+def _shares_row(text):
+    return {"title": "Übersicht", "type": "table",
+            "data": [{"title": "Aktien", "detail": {"text": text, "type": "text"}, "style": "plain"}]}
+
+
+@pytest.mark.parametrize("sections, value", [
+    ([], -23.2),                              # no share count in the details: nothing is guessed
+    ([_shares_row("0")], -23.2),              # zero shares
+    ([_shares_row("viel")], -23.2),           # not a number
+    ([_shares_row("0,25")], 17.1),            # money came in, it is no debit
+])
+def test_dividend_reinvestment_without_shares_or_debit_stays_unknown(sections, value):
+    from brokersync.adapters.tr import to_transactions
+
+    (t,) = to_transactions([_reinvestment(sections, value)])
+    assert t.kind == Kind.UNKNOWN
+
+
+def test_dividend_reinvestment_reads_german_share_notation():
+    from brokersync.adapters.tr import to_transactions
+
+    (t,) = to_transactions([_reinvestment([_shares_row("1.234,5")])])
+    assert (t.kind, t.shares, t.net, t.isin) == (Kind.BUY, D("1234.5"), D("23.2"), "GB00BP6MXD84")
+
+
 def test_unknown_and_informational_events():
     out = txs()
     unknown = [t for t in out if t.kind == Kind.UNKNOWN]
-    assert [t.raw_type for t in unknown] == ["SSP_CORPORATE_ACTION_INVOICE_SHARES (SPLIT)",
-                                             "SSP_CORPORATE_ACTION_INSTRUMENT"]  # reinvestment: no share count
+    assert [t.raw_type for t in unknown] == ["SSP_CORPORATE_ACTION_INVOICE_SHARES (SPLIT)"]
     assert set(unknown[0].raw) == {"eventType", "title", "subtitle", "status"}  # nothing personal
     # With an amount, it is shown so the event can be booked by hand - still nothing personal.
     from brokersync.adapters.tr import _unknown
@@ -251,7 +289,7 @@ def setup_sync(tmp_path):
 def test_sync_books_the_timeline_and_reports_lasting_deviations(tmp_path):
     syncer, wf, notifier = setup_sync(tmp_path)
     [r] = syncer.run()
-    assert (r.status, r.created, r.unknown) == ("ok", 15, 2)
+    assert (r.status, r.created, r.unknown) == ("ok", 16, 1)
     assert syncer.state.balances("tr") == [{"currency": "EUR", "account": "", "amount": "1234.56",
                                              "at": syncer.state.balances("tr")[0]["at"]}]
     devs = syncer.state.reconcile("tr")["deviations"]

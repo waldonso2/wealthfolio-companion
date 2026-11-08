@@ -625,9 +625,11 @@ class Syncer:
             run.cash = self._broker_cash(key, adapter)
             run.positions = self._broker_positions(key, adapter) if type(adapter).reports_positions else None
         finally:
-            # Keep whatever session the adapter has, even half-way through a login.
-            adapter.close()
-            self.vault.store_session(key, adapter)
+            # Keep whatever session the adapter has, even half-way through a login - and if closing fails.
+            try:
+                adapter.close()
+            finally:
+                self.vault.store_session(key, adapter)
 
     def _prepare(self, run: RunContext) -> None:
         """What is new, unknown events reported, accounts, mappings, patterns, savings transfer pairs."""
