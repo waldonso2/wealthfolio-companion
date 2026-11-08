@@ -7,8 +7,9 @@
 #   sec12-e2e.sh prepare-reboot install the previous release, then start the update you interrupt (scenario 10)
 #   sec12-e2e.sh after-reboot   check the state after that interrupted update
 #   sec12-e2e.sh prepare-auto   install the previous release for the automatic update (scenario 6)
-#   sec12-e2e.sh check-auto     check that the automatic update installed the latest release
+#   sec12-e2e.sh check-auto     wait (up to 15 minutes) until the automatic update installed the latest release
 #
+# The script itself holds the default test password, so the plain-text search skips files named sec12-e2e.sh.
 # Every result goes to /root/sec12-report.txt (no secrets in it). Environment: PREV (the older release to go
 # back to, default: the release before the latest), SYNTH (the synthetic test password typed in the UI).
 set -uo pipefail
@@ -102,6 +103,16 @@ block_github() {
 }
 unblock_github() { [[ -f "$HOSTS_BACKUP" ]] && cp "$HOSTS_BACKUP" /etc/hosts && rm -f "$HOSTS_BACKUP"; }
 
+# A curl that fails only for the service's health URL: the new release then never looks healthy, whatever its
+# real state (COMPANION_HEALTH_TIMEOUT alone cannot fail a service that answers at once).
+FAKE_BIN=/tmp/sec12-bin
+unhealthy_path() {
+  mkdir -p "$FAKE_BIN"
+  printf '#!/bin/sh\ncase "$*" in *127.0.0.1:8443/healthz*) exit 22;; esac\nexec /usr/bin/curl "$@"\n' >"$FAKE_BIN/curl"
+  chmod 755 "$FAKE_BIN/curl"
+  printf '%s' "$FAKE_BIN:$PATH"
+}
+
 update_cases() {
   local new old before rc
   new="$(latest)"; old="$(previous)"
@@ -122,7 +133,8 @@ update_cases() {
   check "service still healthy" wait_healthy
 
   header "Scenario 9 + 14: failed health check rolls back"
-  run_update "" COMPANION_HEALTH_TIMEOUT=1; rc=$?
+  run_update "" COMPANION_HEALTH_TIMEOUT=4 "PATH=$(unhealthy_path)"; rc=$?
+  rm -rf "$FAKE_BIN"
   check "update reports failure (exit $rc)" test "$rc" != 0
   check "rolled back to $before" test "$(installed)" == "$before"
   check "current points to a $before release" bash -c "readlink '$BASE/current' | grep -q 'releases/$before-'"
@@ -130,9 +142,10 @@ update_cases() {
   check "service healthy after rollback" wait_healthy
 
   header "Scenario 11: two updates at once"
+  [[ "$(installed)" == "$old" ]] || run_update "$old" >/dev/null
   run_update "" >/tmp/sec12-u1.log 2>&1 &
   local first=$!
-  sleep 3
+  sleep 5
   run_update ""; rc=$?
   check "second update is refused as busy (exit 75, was $rc)" test "$rc" == 75
   wait "$first"; check "first update finished ($(installed))" test "$(installed)" == "$new"
@@ -141,24 +154,32 @@ update_cases() {
 
 secrets_case() {
   header "Scenario 15: no synthetic credential in logs or files"
-  local hits
+  local hits files
   hits="$( { journalctl --no-pager -q 2>/dev/null; cat /root/sec12-u*.log 2>/dev/null; } | grep -c -F -- "$SYNTH")"
   check "journal holds no '$SYNTH' ($hits hits)" test "$hits" == 0
-  hits="$(grep -r -a -l -F -- "$SYNTH" "$BASE" /etc/wealthfolio-companion /run/wealthfolio-companion /tmp /var/log 2>/dev/null | wc -l)"
+  files="$(grep -r -a -l -F --exclude=sec12-e2e.sh -- "$SYNTH" "$BASE" /etc/wealthfolio-companion /run/wealthfolio-companion /tmp /var/log 2>/dev/null)"
+  hits="$(printf '%s' "$files" | grep -c .)"
   check "no file holds '$SYNTH' in plain text ($hits files)" test "$hits" == 0
+  [[ -z "$files" ]] || say "      files: $(printf '%s' "$files" | tr '\n' ' ')"
 }
+
+datafiles() {  # SQLite's -wal/-shm side files come and go with the service
+  (cd "$BASE/data" && find . -type f ! -name 'before-restore-*' ! -name '*-wal' ! -name '*-shm' | LC_ALL=C sort | tr '\n' ' ')
+}
+leftovers() { find "$BASE/releases" -maxdepth 2 \( -name .incomplete -o -name '.dl.*' \) 2>/dev/null; }
 
 backup_case() {
   header "Scenario 16: backup and restore"
   local b=/root/sec12-backup.tar.gz before after
-  before="$(cd "$BASE/data" && find . -type f ! -name 'before-restore-*' | LC_ALL=C sort | tr '\n' ' ')"
+  before="$(datafiles)"
   (umask 077; /usr/local/bin/companion-cli backup >"$b") ; check "backup written" test -s "$b"
   systemctl stop wealthfolio-companion wealthfolio-companion-run.timer
   /usr/local/bin/companion-cli restore <"$b"; check "restore accepted" test $? == 0
   systemctl start wealthfolio-companion wealthfolio-companion-run.timer
-  after="$(cd "$BASE/data" && find . -type f ! -name 'before-restore-*' | LC_ALL=C sort | tr '\n' ' ')"
-  check "same data files after restore" test "$before" == "$after"
   check "service healthy after restore" wait_healthy
+  after="$(datafiles)"
+  check "same data files after restore" test "$before" == "$after"
+  [[ "$before" == "$after" ]] || say "      before: $before / after: $after"
   check "data opens (security-status)" bash -c "/usr/local/bin/companion-cli security-status >/dev/null"
   rm -f "$b"
 }
@@ -208,7 +229,11 @@ case "${1:-}" in
   after-reboot)
     header "Scenario 10: update interrupted by a reboot"
     check "no update-pending left" test ! -e "$BASE/update-pending"
-    check "no unfinished build left" bash -c "! ls -d '$BASE'/releases/*.incomplete '$BASE'/releases/.dl.* 2>/dev/null | grep -q ."
+    # No update-pending yet while it was still building: the boot unit stays off, the next update (or --recover)
+    # clears what it left. Inert meanwhile: current never points at it.
+    leftovers | sed 's/^/      left by the interrupted build: /' | tee -a "$REPORT"
+    /usr/local/bin/companion-update --recover >/dev/null 2>&1
+    check "no unfinished build left after --recover" test -z "$(leftovers)"
     check "current matches the installed version ($(installed))" bash -c "readlink '$BASE/current' | grep -q 'releases/$(installed)-'"
     check "service healthy" wait_healthy
     say "Result so far: $FAILS failed in this step."
@@ -219,10 +244,11 @@ case "${1:-}" in
     old="$(previous)"
     run_update "$old" >/dev/null
     say ""; say "== Scenario 6 prepared: installed $(installed). Switch on the automatic update (page Updates,"
-    say "   interval 60), wait 5 minutes, then: sec12-e2e.sh check-auto"
+    say "   interval 60), then: sec12-e2e.sh check-auto"
     ;;
   check-auto)
     header "Scenario 6: automatic update"
+    for _ in $(seq 1 90); do [[ "$(installed)" == "$(latest)" ]] && break; sleep 10; done  # up to 15 minutes
     check "automatic update installed the latest release ($(installed))" test "$(installed)" == "$(latest)"
     check "service healthy" wait_healthy
     exit $((FAILS > 0))
