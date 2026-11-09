@@ -1008,9 +1008,9 @@ sepaxml==2.7.0 \
     --hash=sha256:6644f695c66c2bf8f49065d4d7b0814da42140d03292131ec08e09798ad07b5d \
     --hash=sha256:77c6ea8c4ea59e53dcabed1d5d8bb79559a0aac47cf25c8e78b06ff5fef6c2bd
     # via fints
-setuptools==84.1.0 \
-    --hash=sha256:23657205b63d4d31395ab917815247f694aafad28cd21316bf5fd45a51048ea0 \
-    --hash=sha256:5231689c6ac8156cd155cfb98c3fd6fb252c3e7e9bd3d78b64d3c55f132624c9
+setuptools==84.2.1 \
+    --hash=sha256:3ff8b3b5492a0aa66960f4419365a86b84e013070d4313e4d4a6894f5d64d6bc \
+    --hash=sha256:ca140b45d5325a9478f880e351484f62fef15f336462e449ca0c03c873d589c2
     # via -r requirements-build.in
 shtab==1.13.0 \
     --hash=sha256:0a5be9d7ab2b4549e9a38252abcd5ecf5ec6813ecd80c6b06fa851bff55a5085 \
