@@ -66,6 +66,33 @@ def latest(http: httpx.Client) -> str | None:
     return None
 
 
+API = "https://api.github.com/repos/waldonso2/wealthfolio-companion/releases/tags/v{version}"
+MAX_DELAY = 30  # days an automatic update may wait after a release is published
+ASK_EVERY = 900  # with a delay the release's date is asked each time (GitHub's API allows 60 requests an hour)
+
+
+def age_days(http: httpx.Client, version: str) -> float | None:
+    """Days since GitHub published ``version``, None when it doesn't say. A renamed repository answers with a
+    redirect first: followed only within api.github.com."""
+    url = API.format(version=version)
+    for _ in range(HOPS):
+        r = http.get(url, headers={"Accept": "application/vnd.github+json"}, follow_redirects=False)
+        if r.is_redirect:
+            target = httpx.URL(url).join(r.headers.get("location", ""))
+            if target.scheme != "https" or target.host != "api.github.com":
+                return None
+            url = str(target)
+            continue
+        if r.status_code != 200:
+            return None
+        try:
+            published = when(r.json()["published_at"])
+        except (ValueError, KeyError, TypeError):
+            return None
+        return (datetime.now(UTC) - published).total_seconds() / 86400
+    return None
+
+
 PRODUCT = "wealthfolio-companion"  # an answer stored by Wealthfolio Broker Sync (restored with its backup) has none
 
 
@@ -105,15 +132,22 @@ def check(state: State, current: str, *, http: httpx.Client | None = None) -> st
     return None
 
 
-def due(auto_update: bool, interval: int, current: str, since: float, *, http: httpx.Client | None = None
-        ) -> tuple[bool, str | None]:
+def due(auto_update: bool, interval: int, current: str, since: float, *, delay: int = 0,
+        http: httpx.Client | None = None) -> tuple[bool, str | None]:
     """For the container's updater: whether GitHub is asked now (``since``: seconds since it last was) and the
-    newer release to install. Never raises: no answer means nothing to install."""
-    if not auto_update or since < max(interval, MIN_INTERVAL):
+    newer release to install. With ``delay`` (days) a release is installed only once it has been published that
+    long - a faulty or tampered release meets the people who installed at once first; a date GitHub doesn't give
+    means no update yet. Never raises: no answer means nothing to install."""
+    if not auto_update or since < max(interval, MIN_INTERVAL, ASK_EVERY if delay else 0):
         return False, None
     client = http or httpx.Client(timeout=10)
     try:
         version = latest(client)
+        if version and newer(version, current) and delay:
+            age = age_days(client, version)
+            if age is None or age < delay:
+                log.info("update check: %s is not %d days old yet", version, delay)
+                version = None
     except httpx.HTTPError as e:
         log.info("update check: GitHub not reachable (%s)", type(e).__name__)
         version = None

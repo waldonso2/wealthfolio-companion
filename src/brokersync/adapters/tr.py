@@ -209,6 +209,31 @@ def _currency(raw: dict) -> str:
     return (raw.get("amount") or {}).get("currency") or "EUR"
 
 
+def _detail_rows(raw: dict) -> list[dict[str, str]]:
+    """The title/text rows of an event's details view in order (at most 30, short). Kept for corporate actions
+    the service cannot book yet (a reverse split, a swap into another ISIN): the share counts, the ratio and the new
+    ISIN a booking needs are in these rows, and the app's own text is all there is of them."""
+    rows: list[dict[str, str]] = []
+
+    def walk(node, depth=0) -> None:
+        if depth > 6 or len(rows) >= 30:
+            return
+        if isinstance(node, list):
+            for item in node:
+                walk(item, depth + 1)
+        elif isinstance(node, dict):
+            detail = node.get("detail")
+            title, text = node.get("title"), detail.get("text") if isinstance(detail, dict) else None
+            if isinstance(title, str) and isinstance(text, str):
+                rows.append({"title": title[:60], "text": text[:80]})
+            for value in node.values():
+                if isinstance(value, (list, dict)):
+                    walk(value, depth + 1)
+
+    walk((raw.get("details") or {}).get("sections") or [])
+    return rows
+
+
 def _unknown(raw: dict, raw_type: str) -> Transaction:
     ts = raw.get("timestamp") or "1970-01-01T00:00:00.000+0000"
     ts = ts[:-2] + ":" + ts[-2:] if ts[-5] in "+-" else ts
@@ -223,6 +248,8 @@ def _unknown(raw: dict, raw_type: str) -> Transaction:
     amount = raw.get("amount") or {}
     if amount.get("value") is not None:
         payload["betrag"] = f"{amount['value']} {amount.get('currency') or 'EUR'}"
+    if (raw.get("eventType") or "").upper().startswith("SSP_CORPORATE_ACTION") and (rows := _detail_rows(raw)):
+        payload["details"] = rows
     return Transaction(id=raw.get("id", ""), kind=Kind.UNKNOWN, datetime=when, currency=_currency(raw),
                        net=Decimal(0), label=_label(raw), raw_type=raw_type, raw=payload)
 

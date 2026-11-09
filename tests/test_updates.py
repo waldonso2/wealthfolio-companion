@@ -180,3 +180,60 @@ def test_an_answer_stored_by_broker_sync_counts_for_nothing(tmp_path, monkeypatc
     calls: list = []
     assert updates.check(state, "0.1.0a2", http=github("v0.1.0a3", calls)) == "0.1.0a3"
     assert calls and updates.available(state, "0.1.0a2") == "0.1.0a3"
+
+
+def github_with_dates(tag: str, published: datetime, calls: list):
+    """releases/latest redirects to ``tag``; the API names when it was published."""
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(str(request.url))
+        if request.url.host == "api.github.com":
+            stamp = published.isoformat().replace("+00:00", "Z")
+            return httpx.Response(200, json={"tag_name": tag, "published_at": stamp})
+        return httpx.Response(302, headers={"location": f"{updates.RELEASES}/tag/{tag}"})
+
+    return httpx.Client(transport=httpx.MockTransport(handler))
+
+
+def test_a_delay_holds_a_release_back_until_it_is_old_enough():
+    calls: list = []
+    young = github_with_dates("v0.27.0", datetime.now(UTC) - timedelta(days=2), calls)
+    old = github_with_dates("v0.27.0", datetime.now(UTC) - timedelta(days=8), calls)
+    assert updates.due(True, 900, "0.26.1", 900, delay=0, http=young) == (True, "0.27.0")  # no delay: at once
+    assert updates.due(True, 900, "0.26.1", 900, delay=7, http=young) == (True, None)
+    assert updates.due(True, 900, "0.26.1", 900, delay=7, http=old) == (True, "0.27.0")
+    assert updates.due(True, 900, "0.27.0", 900, delay=7, http=old) == (True, None)  # nothing newer
+    # with a delay the API is asked, so not more often than every 15 minutes
+    assert updates.due(True, 60, "0.26.1", 899, delay=7, http=old) == (False, None)
+    assert updates.due(True, 60, "0.26.1", 899, delay=0, http=old) == (True, "0.27.0")
+
+
+def test_a_release_without_a_date_is_not_installed_with_a_delay():
+    def refuse(code, **kw):
+        def handler(request: httpx.Request) -> httpx.Response:
+            if request.url.host == "api.github.com":
+                return httpx.Response(code, **kw)
+            return httpx.Response(302, headers={"location": f"{updates.RELEASES}/tag/v0.27.0"})
+        return httpx.Client(transport=httpx.MockTransport(handler))
+
+    for client in (refuse(403), refuse(404), refuse(200, json={"tag_name": "v0.27.0"}), refuse(200, content=b"<html>"),
+                   refuse(302, headers={"location": "https://evil.example/x"})):
+        assert updates.due(True, 900, "0.26.1", 900, delay=3, http=client) == (True, None)
+
+
+def test_the_delay_is_saved_with_the_updates_and_read_from_the_host_tier(tmp_path, monkeypatch, capsys):
+    from brokersync import cli, config
+
+    client, _, _ = make(tmp_path)
+    first_password(client)
+    assert 'name="delay"' in client.get("/updates").text
+    token = csrf(client, "/updates")
+    for bad in ("31", "-1", "2,5", "x"):
+        r = client.post("/updates", data={"csrf": token, "auto_update": "1", "interval": "900", "delay": bad})
+        assert 'role="alert"' in r.text and not config.load(tmp_path).auto_update, bad
+    r = client.post("/updates", data={"csrf": token, "auto_update": "1", "interval": "900", "delay": "7"})
+    assert "Gespeichert." in r.text and config.load_notify(tmp_path).update_delay == 7
+    monkeypatch.setenv("COMPANION_DATA", str(tmp_path))
+    seen = {}
+    monkeypatch.setattr(updates, "due", lambda *a, **kw: (seen.update(kw), (True, None))[1])
+    assert cli.main(["update-due", "--since", "1000"]) == 0 and seen == {"delay": 7}
+    assert capsys.readouterr().out == "checked\n"

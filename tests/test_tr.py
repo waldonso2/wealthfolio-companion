@@ -136,7 +136,10 @@ def test_unknown_and_informational_events():
     out = txs()
     unknown = [t for t in out if t.kind == Kind.UNKNOWN]
     assert [t.raw_type for t in unknown] == ["SSP_CORPORATE_ACTION_INVOICE_SHARES (SPLIT)"]
-    assert set(unknown[0].raw) == {"eventType", "title", "subtitle", "status"}  # nothing personal
+    # Nothing personal: a corporate action also keeps the text rows of its details (the ratio, the share counts and
+    # the new ISIN of a reverse split are what a booking needs), masked like the rest when stored.
+    assert set(unknown[0].raw) - {"details"} == {"eventType", "title", "subtitle", "status"}
+    assert all(set(row) == {"title", "text"} for row in unknown[0].raw.get("details", []))
     # With an amount, it is shown so the event can be booked by hand - still nothing personal.
     from brokersync.adapters.tr import _unknown
 
@@ -685,3 +688,23 @@ def test_pytr_still_has_the_internals_the_cookie_store_uses():
     api = TradeRepublicApi.__new__(TradeRepublicApi)
     TradeRepublicApi.__init__(api, phone_no="+4900000000", pin="0000", save_cookies=False)
     assert hasattr(api, "_websession") and hasattr(api._websession, "cookies")
+
+
+def test_a_corporate_action_that_cannot_be_booked_keeps_the_rows_of_its_details_but_other_events_do_not():
+    from brokersync.adapters.tr import _unknown
+
+    rows = [{"title": "Übersicht", "type": "table", "data": [
+        {"title": "Verhältnis", "detail": {"text": "10 : 1", "type": "text"}},
+        {"title": "Neue ISIN", "detail": {"text": "XS0000000009", "type": "text"}},
+        {"title": "Aktien", "detail": {"text": "5", "type": "text"}, "style": "plain"}]},
+        {"title": "Dokumente", "data": [{"title": "Abrechnung", "detail": {"type": "document", "id": "d1"}}]}]
+    split = _unknown({"id": "s1", "eventType": "SSP_CORPORATE_ACTION_NO_CASH", "title": "Brent Crude 3x Short",
+                      "subtitle": "Reverse Split", "details": {"sections": rows}}, "SWAP")
+    assert split.raw["details"] == [{"title": "Verhältnis", "text": "10 : 1"},
+                                    {"title": "Neue ISIN", "text": "XS0000000009"}, {"title": "Aktien", "text": "5"}]
+    other = _unknown({"id": "x", "eventType": "REFERRAL_FIRST_TRADE_EXECUTED_INVITER", "title": "Einladung",
+                      "details": {"sections": rows}}, "REFERRAL")
+    assert "details" not in other.raw
+    many = [{"title": f"Zeile {i}", "detail": {"text": "x" * 200}} for i in range(100)]
+    big = _unknown({"id": "b", "eventType": "SSP_CORPORATE_ACTION_CASH", "details": {"sections": many}}, "TAXES")
+    assert len(big.raw["details"]) == 30 and all(len(r["text"]) == 80 for r in big.raw["details"])
