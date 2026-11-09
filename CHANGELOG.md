@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.0b8
+
+Waiting before automatic updates, a newer install engine, newer dependencies, and more for the next report of a corporate action.
+
+- **Automatic update with a waiting time** (*Updates* page, *Wait after publication (days)*, 0 to 30, off by default). The container installs a version only once it has been published that long: a faulty or tampered release meets the people who update at once first. It asks `api.github.com` for the publication date; if GitHub names none, nothing is installed. With a waiting time it looks at most every 15 minutes. The setting is in the host tier like the switch itself, so it works while the data is locked.
+- **Install engine (community-scripts/core) moved** from `59574c3` to `5514fdf` (#211). The changes were read: no new hosts except `github.com` and `apt.postgresql.org` (another app's repository), no new download-and-run, an `eval` that only puts back the shell's own saved trap, and extended telemetry texts for failed or cancelled host tools - the same data classes as before. The variables this script sets (`var_*`) are unchanged. Reason for care: it runs as root on the Proxmox host, so a test install belongs to this release.
+- **Trade Republic corporate actions** (#186, #187, #189): an `SSP_CORPORATE_ACTION*` event the service cannot book yet now keeps the text rows of its details view in the stored payload (at most 30 short rows, masked like the rest). A reverse split's ratio, share counts and new ISIN are in those rows, so the next report carries what a booking needs; nothing is booked or guessed from them.
+- Dependencies: pydantic 2.14.2 with pydantic-core 2.50.2 (now one Dependabot group), websockets 17.4, setuptools 84.2.1, pytest 9.2.0. `curl-cffi` 0.17.0 (used by Trade Republic's web login) waits for a real login test.
+
 ## 0.1.0b7
 
 Asset classes from ESMA's FIRDS register (#185).

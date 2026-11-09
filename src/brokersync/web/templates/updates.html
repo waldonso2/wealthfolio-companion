@@ -13,6 +13,9 @@
     <label for="interval">{{ _("Wie oft nachsehen (Sekunden)") }}</label>
     <input type="number" id="interval" name="interval" min="{{ lowest }}" max="{{ highest }}" step="1" value="{{ cfg.update_interval }}" required aria-describedby="interval-hint">
     <div class="muted" id="interval-hint">{{ _("Mindestens {low} (eine Minute), höchstens {high} (ein Tag). Gefragt wird nur GitHub, nach der neuesten Version - nichts über dich.", low=lowest, high=highest) }}</div>
+    <label for="delay">{{ _("Wartezeit nach der Veröffentlichung (Tage)") }}</label>
+    <input type="number" id="delay" name="delay" min="0" max="{{ max_delay }}" step="1" value="{{ cfg.update_delay }}" required aria-describedby="delay-hint">
+    <div class="muted" id="delay-hint">{{ _("0 installiert sofort. Mit einer Wartezeit (höchstens {max} Tage) installiert der Container eine Version erst, wenn sie so lange veröffentlicht ist: Ein fehlerhaftes oder manipuliertes Release trifft dann zuerst die, die sofort aktualisieren. Dafür fragt der Container das Veröffentlichungsdatum bei api.github.com ab; nennt GitHub keins, wird nicht installiert. Dann wird höchstens alle 15 Minuten nachgesehen.", max=max_delay) }}</div>
     {{ reauth_field("updates_pw", required=False) }}
     <div class="actions"><button>{{ _("Speichern") }}</button></div>
   </form>

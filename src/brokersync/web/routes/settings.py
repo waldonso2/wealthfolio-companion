@@ -274,27 +274,30 @@ def updates_page(request: Request, ctx: Ctx):
     return ctx.render(request, "updates.html", cfg=ctx.cfg(), installed=__version__, container=active(),
                       newest=updates.stored(ctx.state).get("version"),
                       last=json.loads(ctx.state.meta(meta_keys.AUTO_UPDATE()) or "null"),
-                      lowest=updates.MIN_INTERVAL, highest=updates.MAX_INTERVAL)
+                      lowest=updates.MIN_INTERVAL, highest=updates.MAX_INTERVAL, max_delay=updates.MAX_DELAY)
 
 
 @router.post("/updates")
 def updates_save(request: Request, ctx: Ctx, auto_update: str = Form(""), interval: str = Form(""),
-                 ui_password: str = Form("")):
-    """Whether the container installs a newer release by itself, and how often it asks GitHub (seconds)."""
+                 delay: str = Form("0"), ui_password: str = Form("")):
+    """Whether the container installs a newer release by itself, how often it asks GitHub (seconds) and how many
+    days a release must be out before it does."""
     try:
         seconds = inputs.decimal(interval.strip(), N_("Wie oft nachsehen (Sekunden)"),
                                  minimum=Decimal(updates.MIN_INTERVAL), maximum=Decimal(updates.MAX_INTERVAL))
+        days = inputs.decimal(delay.strip() or "0", N_("Wartezeit nach der Veröffentlichung (Tage)"),
+                              minimum=Decimal(0), maximum=Decimal(updates.MAX_DELAY))
     except inputs.Invalid as e:
         return redirect(request, "/updates", e.text(language(request)), "error")
-    if seconds != seconds.to_integral_value():
-        return redirect(request, "/updates", tr(request, "Bitte ganze Sekunden angeben."), "error")
+    if seconds != seconds.to_integral_value() or days != days.to_integral_value():
+        return redirect(request, "/updates", tr(request, "Bitte ganze Zahlen angeben."), "error")
     on = bool(auto_update)
     if on != ctx.cfg().auto_update and (error := ctx.reconfirm(request, ui_password)):
         return redirect(request, "/updates", error, "error")
 
     def change(c) -> None:
-        c.auto_update, c.update_interval = on, int(seconds)
+        c.auto_update, c.update_interval, c.update_delay = on, int(seconds), int(days)
 
     ctx.update(change)
-    ctx.event(request, "auto_update", detail=f"{'on' if on else 'off'} {int(seconds)}s")
+    ctx.event(request, "auto_update", detail=f"{'on' if on else 'off'} {int(seconds)}s, delay {int(days)}d")
     return redirect(request, "/updates", tr(request, "Gespeichert."))

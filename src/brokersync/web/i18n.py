@@ -1295,7 +1295,16 @@ EN: dict[str, str] = {
     "Updates": "Updates",
     "Neue Versionen automatisch installieren": "Install new versions automatically",
     "Wie oft nachsehen (Sekunden)": "How often to look (seconds)",
-    "Bitte ganze Sekunden angeben.": "Please give whole seconds.",
+    "Bitte ganze Zahlen angeben.": "Please give whole numbers.",
+    "Wartezeit nach der Veröffentlichung (Tage)": "Wait after publication (days)",
+    "0 installiert sofort. Mit einer Wartezeit (höchstens {max} Tage) installiert der Container eine Version erst, "
+    "wenn sie so lange veröffentlicht ist: Ein fehlerhaftes oder manipuliertes Release trifft dann zuerst die, die "
+    "sofort aktualisieren. Dafür fragt der Container das Veröffentlichungsdatum bei api.github.com ab; nennt "
+    "GitHub keins, wird nicht installiert. Dann wird höchstens alle 15 Minuten nachgesehen.":
+        "0 installs at once. With a wait (at most {max} days) the container installs a version only once it has "
+        "been published that long: a faulty or tampered release then meets those who update at once first. For "
+        "that the container asks api.github.com for the publication date; if GitHub names none, nothing is "
+        "installed. It then looks at most every 15 minutes.",
     "Installiert: Version {version}.": "Installed: version {version}.",
     "Neueste Version auf GitHub: {version}.": "Newest version on GitHub: {version}.",
     "Eingeschaltet sieht der Container selbst nach, ob eine neue Version erschienen ist, und installiert sie wie "
