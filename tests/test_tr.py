@@ -708,3 +708,60 @@ def test_a_corporate_action_that_cannot_be_booked_keeps_the_rows_of_its_details_
     many = [{"title": f"Zeile {i}", "detail": {"text": "x" * 200}} for i in range(100)]
     big = _unknown({"id": "b", "eventType": "SSP_CORPORATE_ACTION_CASH", "details": {"sections": many}}, "TAXES")
     assert len(big.raw["details"]) == 30 and all(len(r["text"]) == 80 for r in big.raw["details"])
+
+
+# ── a dividend reinvestment as the app really shows it (fabricated numbers) ─────────────────────────────────────
+def _rows(*pairs):
+    return [{"title": "Übersicht", "type": "table",
+             "data": [{"title": t, "detail": {"text": x, "type": "text"}} for t, x in pairs]}]
+
+
+def _cash_leg(rows, value=17.1, isin_icon="logos/GB00BP6MXD84/v2"):
+    return {"id": "c1", "timestamp": "2025-03-26T08:00:00.000+0000", "title": "Shell", "icon": isin_icon,
+            "subtitle": "Reinvestition der Dividende", "status": "EXECUTED",
+            "eventType": "SSP_CORPORATE_ACTION_CASH", "details": {"id": "c1", "sections": rows},
+            "amount": {"currency": "EUR", "value": value, "fractionDigits": 2}}
+
+
+@pytest.mark.parametrize("text, expected", [
+    ("0.512340", D("0.51234")), ("25000.000000", D("25000")), ("38.461538", D("38.461538")),
+    ("1.234,5", D("1234.5")), ("0,25", D("0.25")), ("-23,20 €", D("-23.20")), ("17,10 €", D("17.10")),
+    ("1.234", None), ("12.345.678", None), ("viel", None), ("", None), ("1,2,3", None),
+])
+def test_numbers_as_the_app_shows_them(text, expected):
+    from brokersync.adapters.tr import _number
+
+    assert _number(text) == expected
+
+
+def test_the_reinvested_shares_are_read_from_the_row_the_app_really_has():
+    from brokersync.adapters.tr import to_transactions
+
+    rows = _rows(("Aktien hinzugefügt", "0.512340"), ("Bezugspreis", "-17,40 €"), ("Gesamt", "-17,40 €"))
+    (t,) = to_transactions([_reinvestment(rows, -17.4)])
+    assert (t.kind, t.shares, t.net, t.isin) == (Kind.BUY, D("0.51234"), D("17.4"), "GB00BP6MXD84")
+
+
+def test_the_cash_leg_of_a_reinvestment_is_the_dividend_net_of_its_tax():
+    from brokersync.adapters.tr import to_transactions
+
+    rows = _rows(("Bruttoertrag", "17,41 €"), ("Steuer", "-4,59 €"), ("Gesamt", "12,82 €"))
+    (t,) = to_transactions([_cash_leg(rows, 12.82)])
+    assert (t.kind, t.net, t.gross, t.tax, t.isin) == (Kind.DIVIDEND, D("12.82"), D("17.41"), D("4.59"),
+                                                       "GB00BP6MXD84")
+    (div, *_rest) = to_activities(t, "tr", Accounts("c", "p"))
+    assert (div["activityType"], div["amount"], div["tax"], div["quantity"]) == ("DIVIDEND", "12.82", "4.59", "1")
+
+
+@pytest.mark.parametrize("rows, value", [
+    (_rows(("Bruttoertrag", "17,41 €"), ("Steuer", "-4,59 €"), ("Gesamt", "12,90 €")), 12.90),  # does not add up
+    (_rows(("Bruttoertrag", "17,41 €"), ("Steuer", "-4,59 €"), ("Gesamt", "12,82 €")), 12.80),  # not the amount
+    (_rows(("Bruttoertrag", "17,41 €"), ("Steuer", "4,59 €"), ("Gesamt", "22,00 €")), 22.00),    # a refund, not a tax
+    (_rows(("Steuer", "-4,59 €"), ("Gesamt", "12,82 €")), 12.82),                               # no gross
+    ([], 12.82),
+])
+def test_a_cash_leg_that_does_not_add_up_stays_unknown(rows, value):
+    from brokersync.adapters.tr import to_transactions
+
+    (t,) = to_transactions([_cash_leg(rows, value)])
+    assert t.kind == Kind.UNKNOWN

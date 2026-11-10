@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.0b9
+
+Trade Republic dividend reinvestments are really booked now (#188, #189).
+
+- **Correction of 0.1.0b3.** The buy of the reinvested shares (#188) was meant to read the share count from the details' row *Aktien*; the app's rows are called *Aktien hinzugefügt*, and the count is written with a point (`0.726204`), where the old reading would have taken it for German notation and made it 726204. Neither case booked anything wrong - the row name did not match, so the event stayed in *Unbekannt* - but the feature never worked on real data. Both are fixed: the row, and a number reader (`tr._number`) for the two notations the app uses (German with a comma and a currency sign, plain with a point); an ambiguous `1.234` is refused.
+- **The cash leg** (`SSP_CORPORATE_ACTION_CASH`, #189) is the dividend itself: booked as a DIVIDEND with the net amount and the tax from the rows *Bruttoertrag*, *Steuer* and *Gesamt*, only when they add up to the event's amount.
+- To get the events already in *Unbekannt* booked: update, then *Ab Startdatum neu abrufen* in the broker's settings and fetch once (the normal fetch only looks at recent events). Do not complete them by hand first - they are booked from the details and would exist twice.
+
 ## 0.1.0b8
 
 Waiting before automatic updates, a newer install engine, newer dependencies, and more for the next report of a corporate action.

@@ -31,6 +31,7 @@ from __future__ import annotations
 import asyncio
 import os
 import random
+import re
 import tempfile
 from contextlib import suppress
 from datetime import UTC, datetime
@@ -90,6 +91,9 @@ def to_transactions(events: list[dict]) -> list[Transaction]:
         base = dict(id=raw["id"], datetime=ev.date.astimezone(UTC), currency=_currency(raw), label=_label(raw),
                     raw_type=event_type)
         security = dict(isin=ev.isin, name=ev.title or "", shares=shares)
+        if event_type == "SSP_CORPORATE_ACTION_CASH" and (payout := _reinvested_dividend(value, base, raw, ev)):
+            out.append(payout)
+            continue
         if kind is None:
             if (event_type in events_known_ignored or raw.get("title") in events_known_ignored_title
                     or raw.get("subtitle") in events_known_ignored_subtitle) or raw.get("amount") is None:
@@ -146,21 +150,46 @@ def _unclassified(value: Decimal, base: dict, raw: dict, ev) -> Transaction | No
         return Transaction(kind=Kind.BONUS, net=value, **base)
     if event_type == "SSP_CORPORATE_ACTION_INSTRUMENT" and "Reinvestition" in (raw.get("subtitle") or ""):
         # A dividend reinvestment: a buy of the new shares paid from the cash account (as the CSV import). pytr reads
-        # no share count, the details' "Aktien" row has it; without it, or without a debit, nothing is guessed.
-        shares = _german_number(_detail(raw, "Aktien"))
-        if value < 0 and ev.isin and shares:
+        # no share count, the details' "Aktien hinzugefügt" row has it ("Aktien" in older recordings); without it,
+        # or without a debit, nothing is guessed.
+        shares = _number(_detail_row(raw, "Aktien hinzugefügt") or _detail_row(raw, "Aktien"))
+        if value < 0 and ev.isin and shares and shares > 0:
             return Transaction(kind=Kind.BUY, net=-value, gross=-value, **base,
                                isin=ev.isin, name=ev.title or "", shares=shares)
     return None
 
 
-def _german_number(text: str) -> Decimal | None:
-    """``1.234,56`` → Decimal; None unless it is a positive number (German notation, as the app shows it)."""
+def _reinvested_dividend(value: Decimal, base: dict, raw: dict, ev) -> Transaction | None:
+    """The cash leg of a dividend reinvestment (``SSP_CORPORATE_ACTION_CASH``, which pytr calls ``TAXES``): the
+    dividend itself, net of its tax, from the details' Bruttoertrag / Steuer / Gesamt rows. Only when the rows add up
+    to the event's amount; the buy of the new shares is the other event."""
+    if "Reinvestition" not in (raw.get("subtitle") or "") or value <= 0 or not ev.isin:
+        return None
+    gross, tax, total = (_number(_detail_row(raw, title)) for title in ("Bruttoertrag", "Steuer", "Gesamt"))
+    if gross is None or tax is None or total is None or gross <= 0 or tax > 0:
+        return None
+    if abs(gross + tax - total) > Decimal("0.01") or abs(total - value) > Decimal("0.01"):
+        return None
+    return Transaction(kind=Kind.DIVIDEND, net=value, gross=gross, tax=-tax, **base, isin=ev.isin,
+                       name=ev.title or "")
+
+
+def _number(text: str) -> Decimal | None:
+    """A number as the app shows it: German (``1.234,56``) when there is a comma, else plain (``0.726204``);
+    currency signs and spaces are ignored. None when it is no number, or ambiguous (``1.234`` is 1234 in one
+    notation and 1.234 in the other) - nothing is guessed."""
+    text = re.sub(r"[\s€]", "", text)
+    if not re.fullmatch(r"-?[\d.,]+", text):
+        return None
+    if "," in text:
+        text = text.replace(".", "").replace(",", ".")
+    elif re.fullmatch(r"-?\d{1,3}(\.\d{3})+", text):
+        return None
     try:
-        number = Decimal(text.replace(".", "").replace(",", "."))
+        number = Decimal(text)
     except ArithmeticError:
         return None
-    return number if number.is_finite() and number > 0 else None
+    return number if number.is_finite() else None
 
 
 def portfolio_positions(portfolio: dict | None) -> list[dict]:
@@ -182,7 +211,12 @@ def _cash_label(raw: dict, inbound: bool) -> str:
 
 
 def _detail(raw: dict, title: str) -> str:
-    """Text of a detail row (e.g. the counterparty's IBAN), searched in all sections."""
+    """Text of a detail row (e.g. the counterparty's IBAN) without spaces, upper case."""
+    return _detail_row(raw, title).replace(" ", "").upper()
+
+
+def _detail_row(raw: dict, title: str) -> str:
+    """Text of a detail row as the app shows it, searched in all sections ("" when there is none)."""
     stack = list((raw.get("details") or {}).get("sections") or [])
     while stack:
         item = stack.pop()
@@ -190,7 +224,7 @@ def _detail(raw: dict, title: str) -> str:
             if item.get("title") == title and isinstance(item.get("detail"), dict):
                 text = item["detail"].get("text")
                 if isinstance(text, str):
-                    return text.replace(" ", "").upper()
+                    return text.strip()
             stack.extend(v for v in item.values() if isinstance(v, (list, dict)))
         elif isinstance(item, list):
             stack.extend(item)
