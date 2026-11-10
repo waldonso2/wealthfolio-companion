@@ -10,15 +10,16 @@ import time
 from collections.abc import Callable
 from dataclasses import asdict
 from datetime import datetime
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
-from ... import __version__, container, crypto, meta_keys, redact, retired, updates
+from ... import __version__, container, crypto, meta_keys, redact, retired, swap, updates
 from ... import config as config_mod
 from ...history import COMPLETION_KINDS
 from ...sync import AlreadyRunning, is_running
+from ...wealthfolio import WealthfolioError
 from .. import inputs, views
 from ..context import AppContext, Ctx, language, redirect, tr
 from ..i18n import N_, translate
@@ -251,6 +252,41 @@ async def unknown_complete(request: Request, ctx: Ctx):
         return redirect(request, "/unknown", e.text(language(request)), "error")
     ctx.state.add_completion(broker, tx_id, data)
     return redirect(request, "/unknown", tr(request, "Gespeichert - der nächste Abruf bucht es."))
+
+
+@router.post("/unknown/swap")
+async def unknown_swap(request: Request, ctx: Ctx):
+    """Confirm the proposed exchange of two ISINs (Trade Republic's reverse split into a new instrument): the
+    cost basis comes from Wealthfolio's position, both legs are stored as completions and booked by the next run."""
+    form = await request.form()
+    broker, tx_id = str(form.get("broker", "")), str(form.get("tx_id", ""))
+    events = {e["tx_id"]: e for e in ctx.state.unknown_events(broker)} if broker else {}
+    proposal = (events.get(tx_id) or {}).get("payload", {}).get("proposal")
+    legs = [events.get(proposal[s]["tx_id"]) for s in ("out", "in")] if proposal else [None]
+    if not proposal or None in legs:
+        return redirect(request, "/unknown", tr(request, "Diese Buchung ist nicht mehr offen."), "error")
+    c = ctx.cfg()
+    b = c.brokers.get(broker)
+    try:
+        if b is None or not b.portfolio_account_id:
+            raise swap.SwapError("account")
+        out, new = proposal["out"], proposal["in"]
+        shares = Decimal(out["shares"])
+        with ctx.wf_client(c) as wf:
+            known = ctx.state.assets(broker).get(out["isin"]) or {}
+            amount, currency = swap.cost_basis(wf, b.portfolio_account_id, known.get("asset_id"), out["isin"],
+                                               shares)
+    except (swap.SwapError, WealthfolioError, InvalidOperation) as e:
+        why = {"held": N_("Wealthfolio hält von der alten Position weniger Stücke als entfernt wurden."),
+               "basis": N_("Wealthfolio kennt für die alte Position keinen Einstandswert."),
+               "position": N_("Die alte Position ist in Wealthfolio nicht zu finden."),
+               "account": N_("Das Depotkonto des Brokers ist nicht eingestellt.")}.get(str(e))
+        return redirect(request, "/unknown", tr(request, why) if why else str(e), "error")
+    for kind, n in (("swap_out", out), ("swap_in", new)):
+        ctx.state.add_completion(broker, n["tx_id"], {
+            "kind": kind, "isin": n["isin"], "day": events[n["tx_id"]]["occurred_at"], "currency": currency,
+            "name": n["name"][:200], "shares": n["shares"], "amount": str(amount)})
+    return redirect(request, "/unknown", tr(request, "Gespeichert - der nächste Abruf bucht den Tausch."))
 
 
 def _wf_done(secrets_: dict) -> bool:

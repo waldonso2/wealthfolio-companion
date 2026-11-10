@@ -26,6 +26,7 @@ CSV/PDF imports book the same way:
 
 from __future__ import annotations
 
+import json
 import re
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -95,6 +96,11 @@ class MappingError(Exception):
     """The transaction can't be booked as reported (amounts don't add up, data missing)."""
 
 
+# Wealthfolio's activity ``metadata`` is a JSON string; ``flow.is_external`` keeps an unpaired securities transfer
+# from being reported as an incomplete transfer.
+EXTERNAL_FLOW = json.dumps({"flow": {"is_external": True}}, separators=(",", ":"))
+
+
 def fmt(d: Decimal) -> str:
     """Plain decimal string without exponent or trailing zeros ("3016", "25.125")."""
     s = format(d.normalize(), "f")
@@ -141,6 +147,9 @@ def _check_amounts(tx: Transaction) -> None:
             )
     if tx.kind == Kind.SPLIT and (not tx.isin or not tx.ratio or tx.ratio <= 0):
         raise MappingError("ISIN or split ratio missing.")
+    if tx.kind in (Kind.SECURITY_OUT, Kind.SECURITY_IN) and (
+            not tx.isin or not tx.shares or tx.shares <= 0 or tx.net <= 0):
+        raise MappingError("ISIN, share count or cost basis of the exchange missing.")
     if tx.kind == Kind.DIVIDEND and (not tx.isin or (tx.shares is not None and tx.shares <= 0)):
         raise MappingError("ISIN or share count missing.")
     if (tx.kind in (Kind.DIVIDEND, Kind.INTEREST) and tx.gross is not None
@@ -226,7 +235,27 @@ class _Booking:
             return self.dividend()
         if tx.kind == Kind.SPLIT:
             return [self.split()]
+        if tx.kind in (Kind.SECURITY_OUT, Kind.SECURITY_IN):
+            return [self.security_leg()]
         return self.trade()
+
+    def security_leg(self) -> dict:
+        """One side of an exchange of ISINs: an unpaired TRANSFER_OUT / TRANSFER_IN of the securities account with the
+        cost basis as unit price, marked external so Wealthfolio doesn't report it as an incomplete transfer. The new
+        position arrives a second after the old one leaves."""
+        tx = self.tx
+        leaving = tx.kind == Kind.SECURITY_OUT
+        return _clean({
+            "accountId": self.accounts.portfolio,
+            "activityType": "TRANSFER_OUT" if leaving else "TRANSFER_IN",
+            "activityDate": iso(tx.datetime, 0 if leaving else 1),
+            "currency": tx.currency,
+            "quantity": fmt(tx.shares or Decimal(0)),
+            "unitPrice": fmt(round6(tx.net / (tx.shares or Decimal(1)))),
+            "comment": f"{self.label} {tx.name}{self.ref}",
+            "asset": self.asset(),
+            "metadata": EXTERNAL_FLOW,
+        })
 
     def split(self) -> dict:
         tx, ratio = self.tx, self.tx.ratio or Decimal(0)  # checked > 0 in _check_amounts

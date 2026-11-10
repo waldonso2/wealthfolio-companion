@@ -90,3 +90,60 @@ def test_the_form_checks_and_saves_and_withdraws(tmp_path):
     assert not State(tmp_path).completions()
     r = client.post("/unknown/complete", data={**base, "tx_id": "nope", "isin": ISIN, "ratio": "1"})
     assert "nicht mehr offen" in r.text
+
+
+# ── the proposed exchange of two ISINs (Trade Republic's reverse split into a new instrument) ──────────────────
+PROPOSAL = {"out": {"tx_id": "o1", "isin": ISIN, "name": "Brent Alt", "shares": "25000"},
+            "in": {"tx_id": "n1", "isin": "IE00B4L5Y984", "name": "Brent Neu", "shares": "25"}}
+
+
+class _Holdings:
+    def __init__(self, rows):
+        self.rows = rows
+
+    def holdings(self, _account):
+        return self.rows
+
+
+def _holding(qty, basis, ccy="EUR", **inst):
+    return {"holdingType": "security", "quantity": qty, "localCurrency": ccy, "costBasis": {"local": basis},
+            "instrument": {"id": "a1", "symbol": ISIN, **inst}}
+
+
+def test_the_cost_basis_of_the_removed_shares_comes_from_the_holding():
+    from brokersync import swap
+
+    assert swap.cost_basis(_Holdings([_holding("25000", "1000")]), "p", None, ISIN, D("10000")) == (D("400.00"), "EUR")
+    assert swap.cost_basis(_Holdings([_holding("5", "10", symbol="X")]), "p", "a1", ISIN, D("5")) == (D("10.00"), "EUR")
+    for rows, why in (([_holding("100", "1000")], "held"), ([_holding("25000", "0")], "basis"), ([], "position")):
+        with pytest.raises(swap.SwapError, match=why):
+            swap.cost_basis(_Holdings(rows), "p", None, ISIN, D("25000"))
+
+
+def test_confirming_the_exchange_stores_both_legs_with_the_cost_basis(tmp_path, monkeypatch):
+    from brokersync import config as config_mod
+    from brokersync import swap
+
+    client, _, _ = make(tmp_path)
+    first_password(client)
+    config_mod.update(tmp_path, lambda c: c.brokers.__setitem__("fake", config_mod.BrokerConfig(
+        enabled=True, cash_account_id="acc-cash", portfolio_account_id="acc-depot")))
+    state = State(tmp_path)
+    for tx_id in ("o1", "n1"):
+        state.add_unknown("fake", tx_id, "SSP_CORPORATE_ACTION_NO_CASH", "2026-03-02T07:00:00+00:00",
+                          {"eventType": "SSP_CORPORATE_ACTION_NO_CASH", "proposal": PROPOSAL})
+    assert "Tausch buchen" in client.get("/unknown").text
+    token = csrf(client, "/unknown")
+    monkeypatch.setattr(swap, "cost_basis", lambda *a: (_ for _ in ()).throw(swap.SwapError("position")))
+    r = client.post("/unknown/swap", data={"csrf": token, "broker": "fake", "tx_id": "o1"})
+    assert "nicht zu finden" in r.text and not State(tmp_path).completions()
+    monkeypatch.setattr(swap, "cost_basis", lambda *a: (D("500.00"), "EUR"))
+    r = client.post("/unknown/swap", data={"csrf": token, "broker": "fake", "tx_id": "n1"})
+    assert "bucht den Tausch" in r.text
+    done = State(tmp_path).completions()
+    assert {k: (v["kind"], v["isin"], v["shares"], v["amount"]) for k, v in done.items()} == {
+        ("fake", "o1"): ("swap_out", ISIN, "25000", "500.00"),
+        ("fake", "n1"): ("swap_in", "IE00B4L5Y984", "25", "500.00")}
+    assert "Vorgemerkt als Tausch: alte Position raus" in client.get("/unknown").text
+    r = client.post("/unknown/swap", data={"csrf": token, "broker": "fake", "tx_id": "nope"})
+    assert "nicht mehr offen" in r.text

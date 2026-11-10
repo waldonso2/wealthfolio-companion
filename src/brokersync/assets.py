@@ -37,7 +37,7 @@ from .wealthfolio import WealthfolioClient, WealthfolioError
 
 log = logging.getLogger(__name__)
 
-SECURITY_KINDS = (Kind.BUY, Kind.SELL, Kind.DIVIDEND)
+SECURITY_KINDS = (Kind.BUY, Kind.SELL, Kind.DIVIDEND, Kind.SECURITY_OUT, Kind.SECURITY_IN)
 SECURITY_TYPES = ("BUY", "SELL", "DIVIDEND")
 
 
