@@ -137,7 +137,9 @@ def test_broker_form_keeps_the_input_and_saves_nothing_on_an_error(tmp_path):
     assert "fake" not in config_mod.load(tmp_path).brokers and not Vault(tmp_path).broker("fake")  # nothing saved
     r = client.post("/brokers/fake", data={"csrf": token, "cred_username": "max", "start_date": "2999-01-01"})
     assert r.status_code == 422 and 'id="err-start_date"' in r.text and "Zukunft" in r.text
-    assert f'max="{__import__("datetime").date.today().isoformat()}"' in client.get("/brokers/fake").text
+    from brokersync.web import inputs
+
+    assert f'max="{inputs.today().isoformat()}"' in client.get("/brokers/fake").text  # the German day, not UTC's
 
 
 def test_flash_messages_have_a_role(tmp_path):
