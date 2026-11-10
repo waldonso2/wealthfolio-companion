@@ -138,7 +138,7 @@ def test_unknown_and_informational_events():
     assert [t.raw_type for t in unknown] == ["SSP_CORPORATE_ACTION_INVOICE_SHARES (SPLIT)"]
     # Nothing personal: a corporate action also keeps the text rows of its details (the ratio, the share counts and
     # the new ISIN of a reverse split are what a booking needs), masked like the rest when stored.
-    assert set(unknown[0].raw) - {"details"} == {"eventType", "title", "subtitle", "status"}
+    assert set(unknown[0].raw) - {"details", "isin"} == {"eventType", "title", "subtitle", "status"}
     assert all(set(row) == {"title", "text"} for row in unknown[0].raw.get("details", []))
     # With an amount, it is shown so the event can be booked by hand - still nothing personal.
     from brokersync.adapters.tr import _unknown
@@ -765,3 +765,65 @@ def test_a_cash_leg_that_does_not_add_up_stays_unknown(rows, value):
 
     (t,) = to_transactions([_cash_leg(rows, value)])
     assert t.kind == Kind.UNKNOWN
+
+
+# ── an exchange of one ISIN for another: the two events are paired into a proposal ──────────────────────────────
+def _swap_leg(tx_id, title, isin, rows):
+    return {"id": tx_id, "timestamp": "2026-03-02T07:00:00.000+0000", "title": title, "subtitle": "Reverse Split",
+            "icon": f"logos/{isin}/v2", "status": "EXECUTED", "eventType": "SSP_CORPORATE_ACTION_NO_CASH",
+            "details": {"id": tx_id, "sections": rows},
+            "amount": {"currency": "EUR", "value": 0, "fractionDigits": 2}}
+
+
+SWAP_ROWS = _rows(("Wertpapier", "Brent Alt"), ("Aktien entfernt", "25000.000000"), ("Wertpapier", "Brent Neu"),
+                  ("Aktien hinzugefügt", "25.000000"))
+
+
+def _swap_events(rows=SWAP_ROWS):
+    return [_swap_leg("o1", "Brent Alt", "GB00AAAAAAA3", rows), _swap_leg("n1", "Brent Neu", "GB00BBBBBBB1", rows)]
+
+
+def test_the_two_events_of_an_exchange_carry_the_same_proposal():
+    from brokersync.adapters.tr import to_transactions
+
+    out = to_transactions(_swap_events())
+    assert [t.kind for t in out] == [Kind.UNKNOWN, Kind.UNKNOWN]
+    assert out[0].raw["proposal"] == out[1].raw["proposal"] == {
+        "out": {"tx_id": "o1", "isin": "GB00AAAAAAA3", "name": "Brent Alt", "shares": "25000"},
+        "in": {"tx_id": "n1", "isin": "GB00BBBBBBB1", "name": "Brent Neu", "shares": "25"}}
+
+
+@pytest.mark.parametrize("change", ["one_leg", "same_isin", "no_rows", "bad_number", "unknown_name"])
+def test_an_exchange_that_does_not_pair_up_gets_no_proposal(change):
+    from brokersync.adapters.tr import to_transactions
+
+    events = _swap_events()
+    if change == "one_leg":
+        events = events[:1]
+    elif change == "same_isin":
+        events[1]["icon"] = events[0]["icon"]
+    elif change == "no_rows":
+        events = _swap_events(_rows(("Aktien", "5")))
+    elif change == "bad_number":
+        events = _swap_events(_rows(("Wertpapier", "Brent Alt"), ("Aktien entfernt", "1.234"),
+                                    ("Aktien hinzugefügt", "25")))
+    else:
+        events[0]["title"] = "Etwas anderes"
+    assert all("proposal" not in t.raw for t in to_transactions(events))
+
+
+def test_the_exchange_legs_book_as_unpaired_external_transfers():
+    from brokersync.history import completion
+
+    day = "2026-03-02T07:00:00+00:00"
+    out = completion("o1", {"kind": "swap_out", "isin": "GB00AAAAAAA3", "day": day, "name": "Brent Alt",
+                            "shares": "25000", "amount": "500.00", "currency": "EUR"})
+    new = completion("n1", {"kind": "swap_in", "isin": "GB00BBBBBBB1", "day": day, "name": "Brent Neu",
+                            "shares": "25", "amount": "500.00", "currency": "EUR"})
+    (a,) = to_activities(out, "tr", Accounts("c", "p"))
+    (b,) = to_activities(new, "tr", Accounts("c", "p"))
+    assert (a["activityType"], a["accountId"], a["quantity"], a["unitPrice"]) == ("TRANSFER_OUT", "p", "25000", "0.02")
+    assert (b["activityType"], b["quantity"], b["unitPrice"]) == ("TRANSFER_IN", "25", "20")
+    assert a["metadata"] == b["metadata"] == '{"flow":{"is_external":true}}'
+    assert "sourceGroupId" not in a and (b["activityDate"] > a["activityDate"])
+    assert a["comment"].endswith("[SYNC tr:o1]") and b["comment"].endswith("[SYNC tr:n1]")

@@ -99,7 +99,7 @@ def to_transactions(events: list[dict]) -> list[Transaction]:
                     or raw.get("subtitle") in events_known_ignored_subtitle) or raw.get("amount") is None:
                 continue  # informational, no money or shares moved
             out.append(_unclassified(value, base, raw, ev)
-                       or _unknown(raw, event_type or raw.get("subtitle") or raw.get("title") or "?"))
+                       or _unknown(raw, event_type or raw.get("subtitle") or raw.get("title") or "?", ev.isin))
             continue
 
         if kind == ConditionalEventType.TRADE_INVOICE and not ev.shares2:
@@ -126,7 +126,8 @@ def to_transactions(events: list[dict]) -> list[Transaction]:
         else:
             # Corporate actions, securities transfers, private markets, swaps ...
             name = kind.name if hasattr(kind, "name") else str(kind)
-            out.append(_unknown(raw, f"{event_type or name} ({name})"))
+            out.append(_unknown(raw, f"{event_type or name} ({name})", ev.isin))
+    _propose_exchanges(out)
     return out
 
 
@@ -268,7 +269,40 @@ def _detail_rows(raw: dict) -> list[dict[str, str]]:
     return rows
 
 
-def _unknown(raw: dict, raw_type: str) -> Transaction:
+def _propose_exchanges(transactions: list[Transaction]) -> None:
+    """Pair the two events of an exchange of one ISIN for another (a reverse split into a new instrument: the
+    same moment, the same details rows - *Aktien entfernt* of the old security, *Aktien hinzugefügt* of the new
+    one) and put the booking they stand for into both payloads as ``proposal``. Only for exactly two events with
+    different ISINs, one of which carries the name the rows list before *Aktien entfernt*; anything else gets none.
+    *Unbekannt* offers the proposal for the user's click."""
+    groups: dict[tuple, list[Transaction]] = {}
+    for t in transactions:
+        raw = t.raw or {}
+        if (t.kind == Kind.UNKNOWN and raw.get("isin") and raw.get("details")
+                and str(raw.get("eventType")).upper() == "SSP_CORPORATE_ACTION_NO_CASH"):
+            rows = tuple((r["title"], r["text"]) for r in raw["details"])
+            groups.setdefault((t.datetime, rows), []).append(t)
+    for (_, rows), legs in groups.items():
+        titles = [title for title, _ in rows]
+        if (len(legs) != 2 or legs[0].raw["isin"] == legs[1].raw["isin"]
+                or "Aktien entfernt" not in titles or "Aktien hinzugefügt" not in titles):
+            continue
+        removed, added = _number(dict(rows)["Aktien entfernt"]), _number(dict(rows)["Aktien hinzugefügt"])
+        names = [text for title, text in rows[:titles.index("Aktien entfernt")] if title == "Wertpapier"]
+        old = [t for t in legs if names and t.raw.get("title") == names[-1]]
+        if not removed or not added or removed <= 0 or added <= 0 or len(old) != 1:
+            continue
+        new = next(t for t in legs if t is not old[0])
+        def leg(t: Transaction, n: Decimal) -> dict[str, str]:
+            return {"tx_id": t.id, "isin": t.raw["isin"], "name": t.raw.get("title") or "",
+                    "shares": format(n.normalize(), "f")}
+
+        proposal = {"out": leg(old[0], removed), "in": leg(new, added)}
+        for t in legs:
+            t.raw["proposal"] = proposal
+
+
+def _unknown(raw: dict, raw_type: str, isin: str | None = None) -> Transaction:
     ts = raw.get("timestamp") or "1970-01-01T00:00:00.000+0000"
     ts = ts[:-2] + ":" + ts[-2:] if ts[-5] in "+-" else ts
     try:
@@ -282,8 +316,11 @@ def _unknown(raw: dict, raw_type: str) -> Transaction:
     amount = raw.get("amount") or {}
     if amount.get("value") is not None:
         payload["betrag"] = f"{amount['value']} {amount.get('currency') or 'EUR'}"
-    if (raw.get("eventType") or "").upper().startswith("SSP_CORPORATE_ACTION") and (rows := _detail_rows(raw)):
-        payload["details"] = rows
+    if (raw.get("eventType") or "").upper().startswith("SSP_CORPORATE_ACTION"):
+        if isin:
+            payload["isin"] = isin  # what a booking and the pairing of an exchange need
+        if rows := _detail_rows(raw):
+            payload["details"] = rows
     return Transaction(id=raw.get("id", ""), kind=Kind.UNKNOWN, datetime=when, currency=_currency(raw),
                        net=Decimal(0), label=_label(raw), raw_type=raw_type, raw=payload)
 

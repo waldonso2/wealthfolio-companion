@@ -1,6 +1,6 @@
 {% extends "base.html" %}{% block title %}{{ _("Unbekannte Buchungen") }}{% endblock %}
 {% block content %}
-{% set KIND = {"buy": _("Kauf"), "sell": _("Verkauf"), "in": _("Einbuchung ohne Zahlung"), "out": _("Ausbuchung ohne Zahlung"), "split": _("Split / Reverse Split")} %}
+{% set KIND = {"buy": _("Kauf"), "sell": _("Verkauf"), "in": _("Einbuchung ohne Zahlung"), "out": _("Ausbuchung ohne Zahlung"), "split": _("Split / Reverse Split"), "swap_out": _("Tausch: alte Position raus"), "swap_in": _("Tausch: neue Position rein")} %}
 <div class="card">
   <h1>{{ _("Unbekannte Buchungen") }}</h1>
   <p>{{ _("Diese Buchungen kennt der Dienst noch nicht. Sie wurden <strong>nicht</strong> nach Wealthfolio übernommen – vervollständige sie hier, dann bucht der nächste Abruf sie, oder trage sie von Hand ein. Mit <em>Fehlerbericht auf GitHub</em> meldest du einen Typ, damit er künftig unterstützt wird: GitHub öffnet sich mit vorausgefülltem Text (IBANs und lange Nummern geschwärzt). Der Bericht ist öffentlich – prüfe ihn vor dem Absenden.") }}</p>
@@ -19,6 +19,11 @@
         <details><summary class="muted">{{ _("Rohdaten") }}</summary><pre>{{ e.payload | tojson(indent=1) }}</pre></details>
         {% if e.raw_type != UNMATCHED_SECURITIES %}<a class="button secondary report" href="{{ report_url(e, adapters[e.broker].label if e.broker in adapters else e.broker, version) }}" target="_blank" rel="noopener noreferrer">{{ _("Fehlerbericht auf GitHub") }}</a>
         {% set c = completions.get(e.broker ~ ":" ~ e.tx_id) %}
+        {% set pr = e.payload.get('proposal') %}
+        {% if pr and not c %}
+        <div class="proposal"><p><strong>{{ _("Vorschlag: Tausch") }}</strong> {{ _("{old} ({n_old} Stück) raus, {new} ({n_new} Stück) rein. Der Einstandswert der alten Position kommt aus Wealthfolio und geht auf die neue über – kein Gewinn, kein Verlust. Gebucht wird erst nach deinem Klick.", old=pr.out.name, n_old=pr.out.shares, new=pr['in'].name, n_new=pr['in'].shares) }}</p>
+          <form method="post" action="/unknown/swap" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="broker" value="{{ e.broker }}"><input type="hidden" name="tx_id" value="{{ e.tx_id }}"><button>{{ _("Tausch buchen") }}</button></form></div>
+        {% endif %}
         <details{% if c %} open{% endif %}><summary>{{ _("Vervollständigen und buchen") }}</summary>
           {% if c %}
           <p>{{ _("Vorgemerkt als {what} ({isin}) – der nächste Abruf bucht es.", what=KIND[c.kind], isin=c.isin) }}</p>

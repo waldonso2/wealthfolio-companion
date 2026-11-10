@@ -408,6 +408,21 @@ EN: dict[str, str] = {
     "{label}: bitte angeben.": "{label}: please enter it.",
     "Stückzahl, Betrag und Verhältnis müssen größer 0 sein.": "Shares, amount and ratio must be greater than 0.",
     "Gespeichert - der nächste Abruf bucht es.": "Saved – the next fetch books it.",
+    "Gespeichert - der nächste Abruf bucht den Tausch.": "Saved – the next fetch books the exchange.",
+    "Tausch: alte Position raus": "Exchange: old position out",
+    "Tausch: neue Position rein": "Exchange: new position in",
+    "Vorschlag: Tausch": "Proposal: exchange",
+    ("{old} ({n_old} Stück) raus, {new} ({n_new} Stück) rein. Der Einstandswert der alten Position kommt aus "
+     "Wealthfolio und geht auf die neue über – kein Gewinn, kein Verlust. Gebucht wird erst nach deinem Klick."):
+        ("{old} ({n_old} shares) out, {new} ({n_new} shares) in. The old position's cost basis comes from "
+         "Wealthfolio and moves to the new one – no gain, no loss. Nothing is booked until you click."),
+    "Tausch buchen": "Book the exchange",
+    "Wealthfolio hält von der alten Position weniger Stücke als entfernt wurden.":
+        "Wealthfolio holds fewer shares of the old position than were removed.",
+    "Wealthfolio kennt für die alte Position keinen Einstandswert.":
+        "Wealthfolio has no cost basis for the old position.",
+    "Die alte Position ist in Wealthfolio nicht zu finden.": "The old position was not found in Wealthfolio.",
+    "Das Depotkonto des Brokers ist nicht eingestellt.": "The broker's securities account is not set.",
     "Wertpapier-Buchung ohne Gegenstück – die Wertpapierabrechnung (PDF) in Wealthfolio importieren, dann erkennt der "
     "nächste Abruf sie":
         "Securities booking without counterpart – import the securities statement (PDF) into Wealthfolio, then the "
