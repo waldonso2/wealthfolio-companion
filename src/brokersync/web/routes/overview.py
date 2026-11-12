@@ -211,9 +211,29 @@ def settings_page(request: Request, ctx: Ctx):
 
 @router.get("/unknown", response_class=HTMLResponse)
 def unknown_page(request: Request, ctx: Ctx):
-    return ctx.render(request, "unknown.html", events=ctx.state.unknown_events(),
+    events = ctx.state.unknown_events()
+    return ctx.render(request, "unknown.html", events=events,
                       completions={f"{b}:{t}": c for (b, t), c in ctx.state.completions().items()},
-                      kinds=COMPLETION_KINDS)
+                      kinds=COMPLETION_KINDS, held=_held_positions(ctx, events))
+
+
+def _held_positions(ctx: AppContext, events: list[dict]) -> dict[str, list[tuple[str, str]]]:
+    """For each broker with an exchange proposal: what its securities account holds, to pick the old position
+    from. Empty when Wealthfolio does not answer (the page then offers a field to type the symbol)."""
+    brokers = {e["broker"] for e in events if (e["payload"] or {}).get("proposal")}
+    if not brokers:
+        return {}
+    c, out = ctx.cfg(), {}
+    for key in brokers:
+        b = c.brokers.get(key)
+        if b is None or not b.portfolio_account_id:
+            continue
+        try:
+            with ctx.wf_client(c) as wf:
+                out[key] = swap.positions(wf, b.portfolio_account_id)
+        except WealthfolioError:
+            continue
+    return out
 
 
 # What each kind needs besides the ISIN (#132).

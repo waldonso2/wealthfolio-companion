@@ -178,7 +178,10 @@ def test_confirming_the_exchange_stores_both_legs_with_the_cost_basis(tmp_path, 
     for tx_id in ("o1", "n1"):
         state.add_unknown("fake", tx_id, "SSP_CORPORATE_ACTION_NO_CASH", "2026-03-02T07:00:00+00:00",
                           {"eventType": "SSP_CORPORATE_ACTION_NO_CASH", "proposal": PROPOSAL})
-    assert "Tausch buchen" in client.get("/unknown").text
+    page = client.get("/unknown").text
+    assert "Tausch buchen" in page and 'name="symbol"' in page
+    monkeypatch.setattr(swap, "positions", lambda *a: [("3BRS", "Brent Crude")])
+    assert '<option value="3BRS">Brent Crude (3BRS)</option>' in client.get("/unknown").text
     token = csrf(client, "/unknown")
     monkeypatch.setattr(swap, "asset_ids", lambda *a: set())
     monkeypatch.setattr(swap, "cost_basis", lambda *a, **k: (_ for _ in ()).throw(swap.SwapError("position")))
@@ -194,3 +197,12 @@ def test_confirming_the_exchange_stores_both_legs_with_the_cost_basis(tmp_path, 
     assert "Vorgemerkt als Tausch: alte Position raus" in client.get("/unknown").text
     r = client.post("/unknown/swap", data={"csrf": token, "broker": "fake", "tx_id": "nope"})
     assert "nicht mehr offen" in r.text
+
+
+def test_the_positions_to_pick_from_are_the_open_securities(tmp_path):
+    from brokersync import swap
+
+    rows = [_holding("5", "1", symbol="B", name="Beta"), _holding("5", "1", symbol="A", name="alpha"),
+            {**_holding("5", "1", symbol="C", name="Closed"), "isClosed": True},
+            {"holdingType": "CASH", "instrument": {"symbol": "$CASH-EUR", "name": "Cash"}}]
+    assert swap.positions(_Holdings(rows), "p") == [("A", "alpha"), ("B", "Beta")]

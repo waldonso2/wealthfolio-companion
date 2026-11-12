@@ -2,7 +2,7 @@
 
 ## 0.1.0b13
 
-- **Exchange proposal** (#186, #187): a field *Symbol der alten Position in Wealthfolio* next to *Tausch buchen* names the old position by the symbol it has in Wealthfolio, for when neither its ISIN nor its name matches the broker's (case does not matter). Left empty, nothing changes.
+- **Exchange proposal** (#186, #187): a list *Alte Position in Wealthfolio* next to *Tausch buchen* offers the open positions of the broker's securities account (name and symbol); the chosen one is the old position, for when neither its ISIN nor its name matches the broker's. *automatisch suchen* (the default) changes nothing. If Wealthfolio does not answer when the page opens, a field for the symbol takes its place.
 
 ## 0.1.0b12
 

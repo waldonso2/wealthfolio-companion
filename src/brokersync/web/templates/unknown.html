@@ -23,7 +23,11 @@
         {% if pr and not c %}
         <div class="proposal"><p><strong>{{ _("Vorschlag: Tausch") }}</strong> {{ _("{old} ({n_old} Stück) raus, {new} ({n_new} Stück) rein. Der Einstandswert der alten Position kommt aus Wealthfolio und geht auf die neue über – kein Gewinn, kein Verlust. Gebucht wird erst nach deinem Klick.", old=pr.out.name, n_old=pr.out.shares, new=pr['in'].name, n_new=pr['in'].shares) }}</p>
           <form method="post" action="/unknown/swap" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="broker" value="{{ e.broker }}"><input type="hidden" name="tx_id" value="{{ e.tx_id }}">
+            {% if held.get(e.broker) %}
+            <label>{{ _("Alte Position in Wealthfolio") }} <select name="symbol"><option value="">{{ _("automatisch suchen") }}</option>{% for sym, nm in held[e.broker] %}<option value="{{ sym }}">{{ nm }} ({{ sym }})</option>{% endfor %}</select></label>
+            {% else %}
             <label>{{ _("Symbol der alten Position in Wealthfolio (nur falls sie nicht gefunden wird)") }} <input type="text" name="symbol" maxlength="32" autocomplete="off"></label>
+            {% endif %}
             <button>{{ _("Tausch buchen") }}</button></form></div>
         {% endif %}
         <details{% if c %} open{% endif %}><summary>{{ _("Vervollständigen und buchen") }}</summary>

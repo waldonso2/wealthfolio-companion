@@ -417,6 +417,8 @@ EN: dict[str, str] = {
         ("{old} ({n_old} shares) out, {new} ({n_new} shares) in. The old position's cost basis comes from "
          "Wealthfolio and moves to the new one – no gain, no loss. Nothing is booked until you click."),
     "Tausch buchen": "Book the exchange",
+    "Alte Position in Wealthfolio": "Old position in Wealthfolio",
+    "automatisch suchen": "find automatically",
     "Symbol der alten Position in Wealthfolio (nur falls sie nicht gefunden wird)":
         "Symbol of the old position in Wealthfolio (only if it is not found)",
     "Wealthfolio hält von der alten Position weniger Stücke als entfernt wurden.":
