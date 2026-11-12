@@ -113,11 +113,28 @@ def _holding(qty, basis, ccy="EUR", **inst):
 def test_the_cost_basis_of_the_removed_shares_comes_from_the_holding():
     from brokersync import swap
 
-    assert swap.cost_basis(_Holdings([_holding("25000", "1000")]), "p", None, ISIN, D("10000")) == (D("400.00"), "EUR")
-    assert swap.cost_basis(_Holdings([_holding("5", "10", symbol="X")]), "p", "a1", ISIN, D("5")) == (D("10.00"), "EUR")
-    for rows, why in (([_holding("100", "1000")], "held"), ([_holding("25000", "0")], "basis"), ([], "position")):
+    def basis(rows, ids=frozenset(), name="", shares="10000"):
+        return swap.cost_basis(_Holdings(rows), "p", set(ids), ISIN, name, D(shares))
+
+    assert basis([_holding("25000", "1000")]) == (D("400.00"), "EUR")  # symbol is the ISIN
+    assert basis([_holding("5", "10", symbol="X")], {"a1"}, shares="5") == (D("10.00"), "EUR")  # by asset id
+    assert basis([_holding("25000", "1000", symbol="3SOS", name="Brent Alt")], name="Brent Alt")[0] == D("400.00")
+    for rows, why in (([_holding("100", "1000")], "held"), ([_holding("25000", "0")], "basis"), ([], "position"),
+                      ([_holding("5", "1", symbol="X", name="A"), _holding("5", "1", symbol="Y", name="A")],
+                       "position")):
         with pytest.raises(swap.SwapError, match=why):
-            swap.cost_basis(_Holdings(rows), "p", None, ISIN, D("25000"))
+            basis(rows, name="A" if why == "position" else "", shares="5" if why == "position" else "25000")
+
+
+def test_assets_are_found_by_their_own_isin():
+    from brokersync import swap
+
+    class WF:
+        def list_assets(self):
+            return [{"id": "a9", "instrumentSymbol": "3SOS", "metadata": {"identifiers": {"isin": ISIN}}},
+                    {"id": "a8", "instrumentSymbol": "OTHER"}]
+
+    assert swap.asset_ids(WF(), {"asset_id": "a1"}, ISIN) == {"a1", "a9"}
 
 
 def test_confirming_the_exchange_stores_both_legs_with_the_cost_basis(tmp_path, monkeypatch):
@@ -134,6 +151,7 @@ def test_confirming_the_exchange_stores_both_legs_with_the_cost_basis(tmp_path, 
                           {"eventType": "SSP_CORPORATE_ACTION_NO_CASH", "proposal": PROPOSAL})
     assert "Tausch buchen" in client.get("/unknown").text
     token = csrf(client, "/unknown")
+    monkeypatch.setattr(swap, "asset_ids", lambda *a: set())
     monkeypatch.setattr(swap, "cost_basis", lambda *a: (_ for _ in ()).throw(swap.SwapError("position")))
     r = client.post("/unknown/swap", data={"csrf": token, "broker": "fake", "tx_id": "o1"})
     assert "nicht zu finden" in r.text and not State(tmp_path).completions()

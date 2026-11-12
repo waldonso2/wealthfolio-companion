@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from decimal import Decimal, InvalidOperation
 
+from .logos import isin_of
 from .wealthfolio import WealthfolioClient
 
 
@@ -23,22 +24,31 @@ def _dec(value) -> Decimal:
         return Decimal(0)
 
 
-def cost_basis(wf: WealthfolioClient, account_id: str, asset_id: str | None, isin: str,
+def asset_ids(wf: WealthfolioClient, known: dict, isin: str) -> set[str]:
+    """Wealthfolio assets that carry the ISIN: the one the sync learned, and any whose own ISIN (metadata or
+    symbol) matches - an import books a security under the user's mapped ticker, so the symbol is no ISIN."""
+    ids = {known["asset_id"]} if known.get("asset_id") else set()
+    ids |= {a["id"] for a in wf.list_assets() if a.get("id") and isin_of(a) == isin}
+    return ids
+
+
+def cost_basis(wf: WealthfolioClient, account_id: str, ids: set[str], isin: str, name: str,
                shares: Decimal) -> tuple[Decimal, str]:
     """The cost basis of ``shares`` of the old position, in the position's own currency: the holding's basis
-    scaled to the shares removed. Raises ``SwapError`` when the position is not found or holds fewer shares."""
-    for h in wf.holdings(account_id):
-        inst = h.get("instrument") or {}
-        if h.get("holdingType") == "cash" or h.get("isClosed"):
-            continue
-        if not ((asset_id and inst.get("id") == asset_id) or inst.get("symbol") == isin):
-            continue
-        held = _dec(h.get("quantity"))
-        basis = _dec((h.get("costBasis") or {}).get("local"))
-        if held < shares or held <= 0:
-            raise SwapError("held")
-        if basis <= 0:
-            raise SwapError("basis")
-        currency = h.get("localCurrency") or inst.get("currency") or "EUR"
-        return (basis * shares / held).quantize(Decimal("0.01")), currency
-    raise SwapError("position")
+    scaled to the shares removed. Found by asset id or symbol; failing both, by the broker's name when exactly one
+    holding has it. Raises ``SwapError`` when the position is not found or holds fewer shares."""
+    live = [h for h in wf.holdings(account_id) if h.get("holdingType") != "cash" and not h.get("isClosed")]
+    found = [h for h in live if (h.get("instrument") or {}).get("id") in ids
+             or (h.get("instrument") or {}).get("symbol") == isin]
+    if not found:
+        found = [h for h in live if name and (h.get("instrument") or {}).get("name") == name]
+    if len(found) != 1:
+        raise SwapError("position")
+    h = found[0]
+    held, basis = _dec(h.get("quantity")), _dec((h.get("costBasis") or {}).get("local"))
+    if held < shares or held <= 0:
+        raise SwapError("held")
+    if basis <= 0:
+        raise SwapError("basis")
+    currency = h.get("localCurrency") or (h.get("instrument") or {}).get("currency") or "EUR"
+    return (basis * shares / held).quantize(Decimal("0.01")), currency
