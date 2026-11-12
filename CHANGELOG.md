@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.0b12
+
+- **Exchange proposal** (#186, #187): the old position is also found when its name in Wealthfolio differs from Trade Republic's in case, spacing or by a suffix (one contained in the other, at least 8 characters, exactly one holding). The list in the error message shows up to 80 positions instead of 12.
+
 ## 0.1.0b11
 
 - **Exchange proposal: the error says what was looked at** (#186, #187). When the old position cannot be found, the message now lists the names and symbols of the positions the securities account holds (no amounts), so the cause - another account, another name, a closed position - can be seen at once. Cash is recognised whatever the case of its type.
