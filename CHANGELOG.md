@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.0b11
+
+- **Exchange proposal: the error says what was looked at** (#186, #187). When the old position cannot be found, the message now lists the names and symbols of the positions the securities account holds (no amounts), so the cause - another account, another name, a closed position - can be seen at once. Cash is recognised whatever the case of its type.
+
 ## 0.1.0b10
 
 Fix for the exchange proposal of 0.1.0b9 (#186, #187).
