@@ -14,7 +14,12 @@ from .wealthfolio import WealthfolioClient
 
 
 class SwapError(Exception):
-    """The proposal cannot be booked from what Wealthfolio holds; the message says why (shown to the user)."""
+    """The proposal cannot be booked from what Wealthfolio holds; ``args[0]`` says why (shown to the user),
+    ``detail`` is what was looked at (names and symbols of the account's positions, never amounts)."""
+
+    def __init__(self, why: str, detail: str = "") -> None:
+        super().__init__(why)
+        self.detail = detail
 
 
 def _dec(value) -> Decimal:
@@ -37,13 +42,19 @@ def cost_basis(wf: WealthfolioClient, account_id: str, ids: set[str], isin: str,
     """The cost basis of ``shares`` of the old position, in the position's own currency: the holding's basis
     scaled to the shares removed. Found by asset id or symbol; failing both, by the broker's name when exactly one
     holding has it. Raises ``SwapError`` when the position is not found or holds fewer shares."""
-    live = [h for h in wf.holdings(account_id) if h.get("holdingType") != "cash" and not h.get("isClosed")]
+    rows = [h for h in wf.holdings(account_id) if (h.get("holdingType") or "").lower() != "cash"]
+    live = [h for h in rows if not h.get("isClosed")]
     found = [h for h in live if (h.get("instrument") or {}).get("id") in ids
              or (h.get("instrument") or {}).get("symbol") == isin]
     if not found:
         found = [h for h in live if name and (h.get("instrument") or {}).get("name") == name]
     if len(found) != 1:
-        raise SwapError("position")
+        def label(h: dict) -> str:
+            inst = h.get("instrument") or {}
+            return f"{inst.get('name') or '?'} ({inst.get('symbol')}{', closed' if h.get('isClosed') else ''})"
+
+        seen = "; ".join(label(h) for h in rows[:12])
+        raise SwapError("position", f"{len(found)} matches for {isin} / {name}. Account holds: {seen or 'nothing'}")
     h = found[0]
     held, basis = _dec(h.get("quantity")), _dec((h.get("costBasis") or {}).get("local"))
     if held < shares or held <= 0:

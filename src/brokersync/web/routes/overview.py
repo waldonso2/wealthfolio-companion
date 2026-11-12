@@ -281,7 +281,8 @@ async def unknown_swap(request: Request, ctx: Ctx):
                "basis": N_("Wealthfolio kennt für die alte Position keinen Einstandswert."),
                "position": N_("Die alte Position ist in Wealthfolio nicht zu finden."),
                "account": N_("Das Depotkonto des Brokers ist nicht eingestellt.")}.get(str(e))
-        return redirect(request, "/unknown", tr(request, why) if why else str(e), "error")
+        shown = tr(request, why) if why else str(e)
+        return redirect(request, "/unknown", f"{shown} {getattr(e, 'detail', '')}".strip(), "error")
     for kind, n in (("swap_out", out), ("swap_in", new)):
         ctx.state.add_completion(broker, n["tx_id"], {
             "kind": kind, "isin": n["isin"], "day": events[n["tx_id"]]["occurred_at"], "currency": currency,

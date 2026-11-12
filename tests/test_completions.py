@@ -126,6 +126,15 @@ def test_the_cost_basis_of_the_removed_shares_comes_from_the_holding():
             basis(rows, name="A" if why == "position" else "", shares="5" if why == "position" else "25000")
 
 
+def test_a_missing_position_names_what_the_account_holds():
+    from brokersync import swap
+
+    rows = [_holding("5", "1", symbol="3SOS", name="Anderes"), {**_holding("5", "1"), "isClosed": True}]
+    with pytest.raises(swap.SwapError) as e:
+        swap.cost_basis(_Holdings(rows[:1]), "p", set(), ISIN, "Brent", D("5"))
+    assert "Anderes (3SOS)" in e.value.detail and "0 matches" in e.value.detail
+
+
 def test_assets_are_found_by_their_own_isin():
     from brokersync import swap
 
