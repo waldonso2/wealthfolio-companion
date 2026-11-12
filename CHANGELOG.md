@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.0b10
+
+Fix for the exchange proposal of 0.1.0b9 (#186, #187).
+
+- **"The old position was not found in Wealthfolio."** The old position was looked up by the ISIN the sync had learned or by a symbol equal to the ISIN; an import books a security under the user's own ticker, so neither matched. It is now also found by the ISIN in the asset's own data (metadata or symbol) and, when exactly one holding has the broker's name, by that name.
+
 ## 0.1.0b9
 
 Trade Republic dividend reinvestments are really booked now (#188, #189), and an exchange into a new ISIN (reverse split) can be booked from a proposal (#186, #187).
