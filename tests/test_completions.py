@@ -135,6 +135,16 @@ def test_a_missing_position_names_what_the_account_holds():
     assert "Anderes (3SOS)" in e.value.detail and "0 matches" in e.value.detail
 
 
+def test_the_name_may_differ_in_case_and_be_part_of_the_other():
+    from brokersync import swap
+
+    row = _holding("25000", "1000", symbol="3SOS", name="WisdomTree Brent Crude 3x Short USD (Acc) ETP")
+    assert swap.cost_basis(_Holdings([row]), "p", set(), ISIN, "brent crude 3x short usd (acc)",
+                           D("5000"))[0] == D("200.00")
+    with pytest.raises(swap.SwapError):  # a short name never matches
+        swap.cost_basis(_Holdings([row]), "p", set(), ISIN, "Brent", D("5000"))
+
+
 def test_assets_are_found_by_their_own_isin():
     from brokersync import swap
 

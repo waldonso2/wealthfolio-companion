@@ -29,6 +29,13 @@ def _dec(value) -> Decimal:
         return Decimal(0)
 
 
+def _same_name(a: str, b: str) -> bool:
+    """Names equal ignoring case and spaces, or one contained in the other (Wealthfolio's name of an asset is the
+    user's or Yahoo's, the broker's is Trade Republic's). Never for an empty or very short name."""
+    a, b = "".join(a.lower().split()), "".join(b.lower().split())
+    return len(a) >= 8 and len(b) >= 8 and (a in b or b in a)
+
+
 def asset_ids(wf: WealthfolioClient, known: dict, isin: str) -> set[str]:
     """Wealthfolio assets that carry the ISIN: the one the sync learned, and any whose own ISIN (metadata or
     symbol) matches - an import books a security under the user's mapped ticker, so the symbol is no ISIN."""
@@ -47,13 +54,13 @@ def cost_basis(wf: WealthfolioClient, account_id: str, ids: set[str], isin: str,
     found = [h for h in live if (h.get("instrument") or {}).get("id") in ids
              or (h.get("instrument") or {}).get("symbol") == isin]
     if not found:
-        found = [h for h in live if name and (h.get("instrument") or {}).get("name") == name]
+        found = [h for h in live if _same_name(name, (h.get("instrument") or {}).get("name") or "")]
     if len(found) != 1:
         def label(h: dict) -> str:
             inst = h.get("instrument") or {}
             return f"{inst.get('name') or '?'} ({inst.get('symbol')}{', closed' if h.get('isClosed') else ''})"
 
-        seen = "; ".join(label(h) for h in rows[:12])
+        seen = "; ".join(label(h) for h in rows[:80])
         raise SwapError("position", f"{len(found)} matches for {isin} / {name}. Account holds: {seen or 'nothing'}")
     h = found[0]
     held, basis = _dec(h.get("quantity")), _dec((h.get("costBasis") or {}).get("local"))
