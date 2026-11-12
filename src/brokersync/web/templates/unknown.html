@@ -30,6 +30,7 @@
             {% endif %}
             <button>{{ _("Tausch buchen") }}</button></form></div>
         {% endif %}
+        <form method="post" action="/unknown/complete" class="inline"><input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="broker" value="{{ e.broker }}"><input type="hidden" name="tx_id" value="{{ e.tx_id }}"><button class="secondary" name="action" value="ignore">{{ _("Ignorieren") }}</button></form>
         <details{% if c %} open{% endif %}><summary>{{ _("Vervollständigen und buchen") }}</summary>
           {% if c %}
           <p>{{ _("Vorgemerkt als {what} ({isin}) – der nächste Abruf bucht es.", what=KIND[c.kind], isin=c.isin) }}</p>

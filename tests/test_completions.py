@@ -92,6 +92,23 @@ def test_the_form_checks_and_saves_and_withdraws(tmp_path):
     assert "nicht mehr offen" in r.text
 
 
+def test_an_amount_of_zero_is_allowed_and_an_unknown_booking_can_be_ignored(tmp_path):
+    client, wf, _ = make(tmp_path)
+    first_password(client)
+    State(tmp_path).add_unknown("fake", "ev-5", "X", "2026-04-20T08:00:00+00:00", {"eventType": "X"})
+    token = csrf(client, "/unknown")
+    base = {"csrf": token, "broker": "fake", "tx_id": "ev-5", "isin": ISIN, "kind": "in", "shares": "3"}
+    assert "Stückzahl und Verhältnis" in client.post("/unknown/complete", data={**base, "shares": "0",
+                                                                                  "amount": "0"}).text
+    assert "bucht es" in client.post("/unknown/complete", data={**base, "amount": "0"}).text
+    assert State(tmp_path).completions()[("fake", "ev-5")]["amount"] == "0"
+    r = client.post("/unknown/complete", data={**base, "action": "ignore"})
+    assert "Ignoriert" in r.text
+    state = State(tmp_path)
+    assert state.unknown_events("fake") == [] and not state.completions()
+    assert state.synced("fake")["ev-5"][0] == "ignored"
+
+
 # ── the proposed exchange of two ISINs (Trade Republic's reverse split into a new instrument) ──────────────────
 PROPOSAL = {"out": {"tx_id": "o1", "isin": ISIN, "name": "Brent Alt", "shares": "25000"},
             "in": {"tx_id": "n1", "isin": "IE00B4L5Y984", "name": "Brent Neu", "shares": "25"}}

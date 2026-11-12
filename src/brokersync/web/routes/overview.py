@@ -252,6 +252,13 @@ async def unknown_complete(request: Request, ctx: Ctx):
     if form.get("action") == "delete":
         ctx.state.delete_completion(broker, tx_id)
         return redirect(request, "/unknown", tr(request, "Zurückgenommen."))
+    if form.get("action") == "ignore":  # never booked, never listed again (as *Ignorieren* on Prüfung)
+        ctx.state.delete_completion(broker, tx_id)
+        ctx.state.ignore(broker, [tx_id])
+        ctx.state.resolve_unknown(broker, tx_id)
+        ctx.event(request, "unknown_ignore", broker=broker, detail=event["raw_type"])
+        return redirect(request, "/unknown",
+                        tr(request, "Ignoriert - die Buchung wird nicht mehr angezeigt und nie gebucht."))
     kind = str(form.get("kind", ""))
     try:
         if kind not in _NEEDS:
@@ -266,8 +273,9 @@ async def unknown_complete(request: Request, ctx: Ctx):
                 data[field] = str(inputs.decimal(raw, label, minimum=Decimal(0)))
             elif field in _NEEDS[kind]:
                 raise inputs.Invalid("{label}: bitte angeben.", label=label)
-        if any(Decimal(data[f]) <= 0 for f in _NEEDS[kind]):
-            raise inputs.Invalid(N_("Stückzahl, Betrag und Verhältnis müssen größer 0 sein."))
+        # An amount of 0 is fine (free shares, a sale at 0); shares and the ratio must be positive.
+        if any(Decimal(data[f]) <= 0 for f in _NEEDS[kind] if f != "amount"):
+            raise inputs.Invalid(N_("Stückzahl und Verhältnis müssen größer 0 sein."))
     except inputs.Invalid as e:
         return redirect(request, "/unknown", e.text(language(request)), "error")
     ctx.state.add_completion(broker, tx_id, data)
