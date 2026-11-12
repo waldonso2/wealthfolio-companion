@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.0b13
+
+- **Exchange proposal** (#186, #187): a field *Symbol der alten Position in Wealthfolio* next to *Tausch buchen* names the old position by the symbol it has in Wealthfolio, for when neither its ISIN nor its name matches the broker's (case does not matter). Left empty, nothing changes.
+
 ## 0.1.0b12
 
 - **Exchange proposal** (#186, #187): the old position is also found when its name in Wealthfolio differs from Trade Republic's in case, spacing or by a suffix (one contained in the other, at least 8 characters, exactly one holding). The list in the error message shows up to 80 positions instead of 12.

@@ -145,6 +145,16 @@ def test_the_name_may_differ_in_case_and_be_part_of_the_other():
         swap.cost_basis(_Holdings([row]), "p", set(), ISIN, "Brent", D("5000"))
 
 
+def test_a_symbol_typed_by_the_user_finds_the_position():
+    from brokersync import swap
+
+    row = _holding("25000", "1000", symbol="3BRS", name="Ganz anderer Name")
+    assert swap.cost_basis(_Holdings([row]), "p", set(), ISIN, "Brent Crude 3x Short USD (Acc)", D("5000"),
+                           "3brs")[0] == D("200.00")
+    with pytest.raises(swap.SwapError):
+        swap.cost_basis(_Holdings([row]), "p", set(), ISIN, "Brent Crude 3x Short USD (Acc)", D("5000"))
+
+
 def test_assets_are_found_by_their_own_isin():
     from brokersync import swap
 
@@ -171,10 +181,10 @@ def test_confirming_the_exchange_stores_both_legs_with_the_cost_basis(tmp_path, 
     assert "Tausch buchen" in client.get("/unknown").text
     token = csrf(client, "/unknown")
     monkeypatch.setattr(swap, "asset_ids", lambda *a: set())
-    monkeypatch.setattr(swap, "cost_basis", lambda *a: (_ for _ in ()).throw(swap.SwapError("position")))
+    monkeypatch.setattr(swap, "cost_basis", lambda *a, **k: (_ for _ in ()).throw(swap.SwapError("position")))
     r = client.post("/unknown/swap", data={"csrf": token, "broker": "fake", "tx_id": "o1"})
     assert "nicht zu finden" in r.text and not State(tmp_path).completions()
-    monkeypatch.setattr(swap, "cost_basis", lambda *a: (D("500.00"), "EUR"))
+    monkeypatch.setattr(swap, "cost_basis", lambda *a, **k: (D("500.00"), "EUR"))
     r = client.post("/unknown/swap", data={"csrf": token, "broker": "fake", "tx_id": "n1"})
     assert "bucht den Tausch" in r.text
     done = State(tmp_path).completions()

@@ -275,8 +275,12 @@ async def unknown_swap(request: Request, ctx: Ctx):
         with ctx.wf_client(c) as wf:
             known = ctx.state.assets(broker).get(out["isin"]) or {}
             ids = swap.asset_ids(wf, known, out["isin"])
-            amount, currency = swap.cost_basis(wf, b.portfolio_account_id, ids, out["isin"], out["name"], shares)
-    except (swap.SwapError, WealthfolioError, InvalidOperation) as e:
+            typed = inputs.symbol(str(form["symbol"])) if str(form.get("symbol") or "").strip() else ""
+            amount, currency = swap.cost_basis(wf, b.portfolio_account_id, ids, out["isin"], out["name"], shares,
+                                               typed)
+    except (swap.SwapError, WealthfolioError, InvalidOperation, inputs.Invalid) as e:
+        if isinstance(e, inputs.Invalid):
+            return redirect(request, "/unknown", e.text(language(request)), "error")
         why = {"held": N_("Wealthfolio hält von der alten Position weniger Stücke als entfernt wurden."),
                "basis": N_("Wealthfolio kennt für die alte Position keinen Einstandswert."),
                "position": N_("Die alte Position ist in Wealthfolio nicht zu finden."),

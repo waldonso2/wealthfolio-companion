@@ -45,14 +45,16 @@ def asset_ids(wf: WealthfolioClient, known: dict, isin: str) -> set[str]:
 
 
 def cost_basis(wf: WealthfolioClient, account_id: str, ids: set[str], isin: str, name: str,
-               shares: Decimal) -> tuple[Decimal, str]:
+               shares: Decimal, symbol: str = "") -> tuple[Decimal, str]:
     """The cost basis of ``shares`` of the old position, in the position's own currency: the holding's basis
     scaled to the shares removed. Found by asset id or symbol; failing both, by the broker's name when exactly one
     holding has it. Raises ``SwapError`` when the position is not found or holds fewer shares."""
     rows = [h for h in wf.holdings(account_id) if (h.get("holdingType") or "").lower() != "cash"]
     live = [h for h in rows if not h.get("isClosed")]
     found = [h for h in live if (h.get("instrument") or {}).get("id") in ids
-             or (h.get("instrument") or {}).get("symbol") == isin]
+             or (h.get("instrument") or {}).get("symbol") in (isin, symbol or isin)]
+    if not found and symbol:  # the user named the symbol: case does not matter
+        found = [h for h in live if ((h.get("instrument") or {}).get("symbol") or "").lower() == symbol.lower()]
     if not found:
         found = [h for h in live if _same_name(name, (h.get("instrument") or {}).get("name") or "")]
     if len(found) != 1:
