@@ -406,7 +406,7 @@ EN: dict[str, str] = {
     "Bitte wählen, was die Buchung ist.": "Please choose what the booking is.",
     "Verhältnis": "Ratio",
     "{label}: bitte angeben.": "{label}: please enter it.",
-    "Stückzahl, Betrag und Verhältnis müssen größer 0 sein.": "Shares, amount and ratio must be greater than 0.",
+    "Stückzahl und Verhältnis müssen größer 0 sein.": "Shares and ratio must be greater than 0.",
     "Gespeichert - der nächste Abruf bucht es.": "Saved – the next fetch books it.",
     "Gespeichert - der nächste Abruf bucht den Tausch.": "Saved – the next fetch books the exchange.",
     "Tausch: alte Position raus": "Exchange: old position out",
@@ -417,6 +417,12 @@ EN: dict[str, str] = {
         ("{old} ({n_old} shares) out, {new} ({n_new} shares) in. The old position's cost basis comes from "
          "Wealthfolio and moves to the new one – no gain, no loss. Nothing is booked until you click."),
     "Tausch buchen": "Book the exchange",
+    "Ignoriert - die Buchung wird nicht mehr angezeigt und nie gebucht.":
+        "Ignored – the booking is no longer shown and never booked.",
+    "Alte Position in Wealthfolio": "Old position in Wealthfolio",
+    "automatisch suchen": "find automatically",
+    "Symbol der alten Position in Wealthfolio (nur falls sie nicht gefunden wird)":
+        "Symbol of the old position in Wealthfolio (only if it is not found)",
     "Wealthfolio hält von der alten Position weniger Stücke als entfernt wurden.":
         "Wealthfolio holds fewer shares of the old position than were removed.",
     "Wealthfolio kennt für die alte Position keinen Einstandswert.":
@@ -1031,6 +1037,7 @@ EN: dict[str, str] = {
         "Master passphrase changed",
     "Abrufmodus geändert":
         "Fetch mode changed",
+    "Unbekannte Buchung ignoriert": "Unknown booking ignored",
     "Neu aufgesetzt":
         "Started over",
     "Entsperrt":

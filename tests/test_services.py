@@ -32,7 +32,7 @@ def test_switching_on_sends_to_the_settings_and_turns_on_once_they_are_saved(tmp
     assert 'role="switch" aria-checked="false"' in page
     for key in ("taxonomies", "isin", "logos", "spending", "xray"):  # every gear: the service's page (#151)
         assert f'href="/services/{key}"' in page
-    assert 'href="/brokers"' in page  # Broker sync's gear goes to the broker list (#180)
+    assert 'class="gear" href="/broker"' in page  # Broker sync's gear goes to the broker overview (#180)
     token = csrf(client, "/")
     r = client.post("/services/logos", data={"csrf": token}, follow_redirects=False)
     assert r.headers["location"] == "/services/logos"  # its page names what is missing

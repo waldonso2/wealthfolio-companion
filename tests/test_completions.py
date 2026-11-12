@@ -92,6 +92,23 @@ def test_the_form_checks_and_saves_and_withdraws(tmp_path):
     assert "nicht mehr offen" in r.text
 
 
+def test_an_amount_of_zero_is_allowed_and_an_unknown_booking_can_be_ignored(tmp_path):
+    client, wf, _ = make(tmp_path)
+    first_password(client)
+    State(tmp_path).add_unknown("fake", "ev-5", "X", "2026-04-20T08:00:00+00:00", {"eventType": "X"})
+    token = csrf(client, "/unknown")
+    base = {"csrf": token, "broker": "fake", "tx_id": "ev-5", "isin": ISIN, "kind": "in", "shares": "3"}
+    assert "Stückzahl und Verhältnis" in client.post("/unknown/complete", data={**base, "shares": "0",
+                                                                                  "amount": "0"}).text
+    assert "bucht es" in client.post("/unknown/complete", data={**base, "amount": "0"}).text
+    assert State(tmp_path).completions()[("fake", "ev-5")]["amount"] == "0"
+    r = client.post("/unknown/complete", data={**base, "action": "ignore"})
+    assert "Ignoriert" in r.text
+    state = State(tmp_path)
+    assert state.unknown_events("fake") == [] and not state.completions()
+    assert state.synced("fake")["ev-5"][0] == "ignored"
+
+
 # ── the proposed exchange of two ISINs (Trade Republic's reverse split into a new instrument) ──────────────────
 PROPOSAL = {"out": {"tx_id": "o1", "isin": ISIN, "name": "Brent Alt", "shares": "25000"},
             "in": {"tx_id": "n1", "isin": "IE00B4L5Y984", "name": "Brent Neu", "shares": "25"}}
@@ -145,6 +162,16 @@ def test_the_name_may_differ_in_case_and_be_part_of_the_other():
         swap.cost_basis(_Holdings([row]), "p", set(), ISIN, "Brent", D("5000"))
 
 
+def test_a_symbol_typed_by_the_user_finds_the_position():
+    from brokersync import swap
+
+    row = _holding("25000", "1000", symbol="3BRS", name="Ganz anderer Name")
+    assert swap.cost_basis(_Holdings([row]), "p", set(), ISIN, "Brent Crude 3x Short USD (Acc)", D("5000"),
+                           "3brs")[0] == D("200.00")
+    with pytest.raises(swap.SwapError):
+        swap.cost_basis(_Holdings([row]), "p", set(), ISIN, "Brent Crude 3x Short USD (Acc)", D("5000"))
+
+
 def test_assets_are_found_by_their_own_isin():
     from brokersync import swap
 
@@ -168,13 +195,16 @@ def test_confirming_the_exchange_stores_both_legs_with_the_cost_basis(tmp_path, 
     for tx_id in ("o1", "n1"):
         state.add_unknown("fake", tx_id, "SSP_CORPORATE_ACTION_NO_CASH", "2026-03-02T07:00:00+00:00",
                           {"eventType": "SSP_CORPORATE_ACTION_NO_CASH", "proposal": PROPOSAL})
-    assert "Tausch buchen" in client.get("/unknown").text
+    page = client.get("/unknown").text
+    assert "Tausch buchen" in page and 'name="symbol"' in page
+    monkeypatch.setattr(swap, "positions", lambda *a: [("3BRS", "Brent Crude")])
+    assert '<option value="3BRS">Brent Crude (3BRS)</option>' in client.get("/unknown").text
     token = csrf(client, "/unknown")
     monkeypatch.setattr(swap, "asset_ids", lambda *a: set())
-    monkeypatch.setattr(swap, "cost_basis", lambda *a: (_ for _ in ()).throw(swap.SwapError("position")))
+    monkeypatch.setattr(swap, "cost_basis", lambda *a, **k: (_ for _ in ()).throw(swap.SwapError("position")))
     r = client.post("/unknown/swap", data={"csrf": token, "broker": "fake", "tx_id": "o1"})
     assert "nicht zu finden" in r.text and not State(tmp_path).completions()
-    monkeypatch.setattr(swap, "cost_basis", lambda *a: (D("500.00"), "EUR"))
+    monkeypatch.setattr(swap, "cost_basis", lambda *a, **k: (D("500.00"), "EUR"))
     r = client.post("/unknown/swap", data={"csrf": token, "broker": "fake", "tx_id": "n1"})
     assert "bucht den Tausch" in r.text
     done = State(tmp_path).completions()
@@ -184,3 +214,12 @@ def test_confirming_the_exchange_stores_both_legs_with_the_cost_basis(tmp_path, 
     assert "Vorgemerkt als Tausch: alte Position raus" in client.get("/unknown").text
     r = client.post("/unknown/swap", data={"csrf": token, "broker": "fake", "tx_id": "nope"})
     assert "nicht mehr offen" in r.text
+
+
+def test_the_positions_to_pick_from_are_the_open_securities(tmp_path):
+    from brokersync import swap
+
+    rows = [_holding("5", "1", symbol="B", name="Beta"), _holding("5", "1", symbol="A", name="alpha"),
+            {**_holding("5", "1", symbol="C", name="Closed"), "isClosed": True},
+            {"holdingType": "CASH", "instrument": {"symbol": "$CASH-EUR", "name": "Cash"}}]
+    assert swap.positions(_Holdings(rows), "p") == [("A", "alpha"), ("B", "Beta")]

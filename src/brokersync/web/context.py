@@ -232,7 +232,8 @@ EVENTS = {"login": N_("Anmeldung"), "logout": N_("Abmeldung"), "setup_password":
           "password": N_("Passwort geändert"), "sessions": N_("Alle anderen Sitzungen beendet"),
           "credentials": N_("Zugangsdaten geändert"), "wealthfolio": N_("Wealthfolio-Adresse gespeichert"),
           "passphrase": N_("Master-Passphrase geändert"), "mode": N_("Abrufmodus geändert"),
-          "reset": N_("Neu aufgesetzt"), "lock": N_("Gesperrt"), "unlock": N_("Entsperrt"),
+          "reset": N_("Neu aufgesetzt"),
+          "unknown_ignore": N_("Unbekannte Buchung ignoriert"), "lock": N_("Gesperrt"), "unlock": N_("Entsperrt"),
           "reauth": N_("Passwort für eine Aktion bestätigt"),
           "auto_update": N_("Automatisches Update")}
 
