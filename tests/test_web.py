@@ -469,6 +469,13 @@ def test_first_page_has_a_language_switch_and_service_pages_a_way_back(tmp_path)
     assert r.headers["location"] == "/setup-password"
     page = client.get("/setup-password").text
     assert "Welcome" in page and 'value="de"' in page and 'value="en"' in page
+    # a code that came with the link survives the switch (and is carried url-encoded)
+    page = client.get("/setup-password?code=AB%20CD").text
+    assert 'name="code" value="AB CD"' in page
+    r = client.post("/setup-language", data={"csrf": token, "language": "de", "code": "AB CD&x"},
+                    follow_redirects=False)
+    assert r.headers["location"] == "/setup-password?code=AB%20CD%26x"
+    client.post("/setup-language", data={"csrf": token, "language": "en"})
     assert client.post("/setup-language", data={"language": "en"}).status_code == 400  # CSRF
     first_password(client)
     # no longer open once a password exists

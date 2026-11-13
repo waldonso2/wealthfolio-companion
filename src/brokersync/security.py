@@ -247,9 +247,10 @@ def _opens(key: bytes, check: bytes) -> bool:
         return False
 
 
-def _new_install(cfg: config_mod.Config) -> None:
+def _new_install(cfg: config_mod.Config, english: bool = True) -> None:
     cfg.services = {}
-    cfg.ui_language = "en"  # a new install starts in English; the first page offers the switch
+    if english:  # a new install starts in English; the first page offers the switch
+        cfg.ui_language = "en"
 
 
 def migrate(data_dir: Path) -> list[str]:
@@ -268,7 +269,8 @@ def migrate(data_dir: Path) -> list[str]:
     if crypto.is_locked(d):
         return done
     if not (d / "config.enc").exists():  # a new install: every service of the page Dienste starts off (#145)
-        config_mod.update(d, _new_install)
+        # An install whose password exists but whose config was never saved keeps its language.
+        config_mod.update(d, lambda cfg: _new_install(cfg, english=not (d / "secrets.enc").exists()))
     m = re.fullmatch(r"http://([^/:]+):8090", config_mod.load(d).public_url or "")
     if m:
         config_mod.update(d, lambda cfg: setattr(cfg, "public_url", f"https://{m.group(1)}:8443"))
