@@ -1,6 +1,6 @@
 # Wealthfolio Companion
 
-> **Alpha** – it works and is used every day, but names, pages and settings may still change before 0.1.0.
+> **Betha** – it works and is used every day, but names, pages and settings may still change before 0.1.0.
 
 Fetches your transactions from your brokers and banks automatically and books them, without duplicates, into your **self-hosted [Wealthfolio](https://wealthfolio.app)**. On top, it adds what Wealthfolio can't do on its own: the countries and sectors of your ETFs, ISINs, logos and a look-through into your ETFs (X-Ray). Set it up once, then everything runs by itself every morning.
 
