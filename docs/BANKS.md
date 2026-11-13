@@ -38,7 +38,7 @@ The service reads your **DKB current account** over FinTS (HBCI), the same inter
 - **Older trades:** DKB delivers the last 89 days. A trade from before the first day of the current-account history the service has read gets its money from outside (a deposit before a purchase, a withdrawal after a sale), as its booking was never read.
 - **Approval:** if DKB asks for an approval for depot transactions, they are not fetched and nothing is booked from them (a note in the log); a rejected PIN stops everything as usual. A failure reading them never stops the current-account sync.
 
-Securities-related current-account transactions without a matching trade (e.g. a dividend) are still checked against what a PDF import booked (same amount, no more than six days apart); if nothing matches you receive a notification, and after importing the settlement the next sync recognises it. DKB also provides **portfolio holdings** through FinTS. After each sync, the service compares them with the DKB securities account in Wealthfolio. If a position is missing, add it as an opening position on the *Review* page.
+Securities-related current-account transactions without a matching trade (e.g. a dividend) are still checked against what a PDF import booked (same amount, no more than six days apart); if nothing matches you receive a notification, and after importing the settlement the next sync recognises it. DKB also provides **portfolio holdings** through FinTS. After each sync, the service compares them with the DKB securities account in Wealthfolio. If a position is missing, add it as an opening position on the *Check* page.
 
 **Savings account:** If you select a separate Wealthfolio account for savings in broker settings, the service also reads its transactions and balance. Interest, deposits, and withdrawals are booked to that account. Transfers between the current and savings accounts are booked once as transfers between those accounts, not as a withdrawal and deposit. The service discovers the savings account automatically; if that fails, enter its IBAN with the credentials. On the first sync, savings transactions are fetched from the configured start date.
 
@@ -46,7 +46,7 @@ Securities-related current-account transactions without a matching trade (e.g. a
 
 **Older securities settlements:** If you import settlements dated before the first day read from the current account, the service has never seen the cash movement. It therefore books a deposit before each such purchase and a withdrawal after each such sale. Dividends remain on the cash account. Purchases and sales from the first day read onwards are covered by the corresponding current-account transaction.
 
-**Balance:** After each sync, the *Broker* page shows the DKB balance (and the savings-account balance). These should match the corresponding Wealthfolio cash accounts.
+**Balance:** After each sync, the *Brokers* page shows the DKB balance (and the savings-account balance). These should match the corresponding Wealthfolio cash accounts.
 
 **Security:** If DKB rejects the login name or PIN, the service will not retry until you save the credentials again. Three failed attempts can lock DKB online banking.
 
@@ -73,7 +73,7 @@ The service reads your **Deutsche Bank current account** and **maxblue portfolio
 | Buy/sell | Buy/sell with quantity, fees and tax; cash transfer from/to the cash account |
 | Incoming position with amount (e.g. employee shares) | Buy; because the cash did not pass through the current account, a deposit of the same amount is booked beforehand |
 | Buys/sells before the first current-account date read | As above, but with a deposit before a purchase or withdrawal after a sale; the corresponding current-account transaction was never read. Dividends always remain on the cash account |
-| Capital transaction, outgoing/incoming without amount | **Not booked**; shown under *Unknown transactions*. Add corporate actions (e.g. a spin-off) and portfolio transfers as opening positions on *Review* |
+| Capital transaction, outgoing/incoming without amount | **Not booked**; shown under *Unknown bookings*. Add corporate actions (e.g. a spin-off) and portfolio transfers as opening positions on *Check* |
 
 **History and security:** As for DKB: the default is the last 89 days; after a rejected PIN, the service does not retry until you save the credentials again.
 
@@ -181,7 +181,7 @@ The service reads your Scalable portfolio using **Scalable's official command-li
 | Portfolio transfer (securities removed and re-added; cash marked `SWITCH-`) | **Not booked**; the entries cancel each other out |
 | Fund exchange (securities and `SWAP_OUT` credit on the same day) | Sale at the credited amount |
 | Certificate repayment/knock-out (position removed at zero and distribution on the same day) | Sale at the paid-out amount |
-| Distribution reversal | Reversal and original distribution cancel each other out. If the service had already imported it, *Review* shows it as “no longer at Scalable”; delete it in Wealthfolio |
+| Distribution reversal | Reversal and original distribution cancel each other out. If the service had already imported it, *Check* shows it as “no longer at Scalable”; delete it in Wealthfolio |
 | Other reversals, individual securities transfers, ELTIFs, negative interest, fee refunds | **Not booked**; reported as unknown for manual review |
 
 Open orders are imported only after execution. The first full-history sync takes a few minutes because Scalable rate-limits details for buys and sells. If necessary, the service books what it has and fetches the remainder on the next run. If nothing arrives, the log (`journalctl -u wealthfolio-companion -n 50`) reports counts by transaction type, without amounts or names. CSV imports are deduplicated as for Trade Republic. Scalable's CSV export does not include dividend tax; when the service recognises an imported dividend, it fills in the tax from Scalable's data (only the tax field changes; amount and comment remain unchanged).
@@ -196,7 +196,7 @@ The service reads both your current account **and securities portfolio** through
 
 **Only the portfolio is booked, not the current account.** The comdirect cash account in Wealthfolio contains dividends only: before each purchase, the service books a deposit equal to the purchase amount; after each sale, it books a withdrawal equal to the proceeds. Current-account transfers, card payments, fees and interest are not imported, and the current-account balance is not reconciled.
 
-**Securities held before the start date** appear on *Review* under “Holding without purchase in Wealthfolio”. Enter the purchase date, unit price (pre-filled with comdirect's cost basis) and fees. The next sync books the purchase and corresponding deposit.
+**Securities held before the start date** appear on *Check* under “Holding without purchase in Wealthfolio”. Enter the purchase date, unit price (pre-filled with comdirect's cost basis) and fees. The next sync books the purchase and corresponding deposit.
 
 **Login:** Approve photoTAN Push in the app and click *I have confirmed in the app* (for photoTAN graphics or mobileTAN, enter the TAN). comdirect sessions are short-lived: the access token lasts ten minutes and can be renewed while the service uses it. The scheduled sync therefore usually needs **fresh approval**: it sends an ntfy notification and waits three minutes for approval in the app. TANs that must be typed can only be entered in the web UI.
 
@@ -210,6 +210,6 @@ The service reads both your current account **and securities portfolio** through
 | Dividend/income (interest/dividend; security identified by ISIN or WKN in description) | Dividend with net amount in the securities account; cash transferred to the cash account. The tax (withholding tax plus capital gains tax, solidarity surcharge and church tax) is added only when the description names the gross amount and each tax and they add up to the net amount - foreign amounts converted at the exchange rate named there. Otherwise the dividend is booked net without tax; nothing is estimated. Dividends booked by an earlier version get their tax added once (only the tax field changes) |
 | Dividend whose security cannot be identified | **Not booked**; reported as unknown |
 | All other current-account transactions (transfers, card payments, fees, interest, etc.) | **Not booked** |
-| Portfolio transfer, or buy/sell with no matching cash transaction after 10 days | **Not booked**; reported as unknown. Add the holding under *Review* |
+| Portfolio transfer, or buy/sell with no matching cash transaction after 10 days | **Not booked**; reported as unknown. Add the holding under *Check* |
 
 Pending transactions and orders are imported only after they are booked. Without a start date, the service looks back ten years (comdirect provides only six months if no date is specified) and imports what comdirect makes available. The oldest dates are recorded in the log (`comdirect: … giro bookings (oldest …), … depot transactions (oldest …)`).

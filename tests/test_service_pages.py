@@ -40,6 +40,7 @@ def test_every_service_page_shows_head_status_settings_and_actions_in_that_order
         assert f'action="/services/{key}"' in page and 'role="switch"' in page, key
         head, status, actions = (page.index('name="back"'), page.index(">Status</h2>"), page.index(">Aktionen</h2>"))
         assert head < status < actions, key
+        assert 'href="/">← Dienste</a>' in page and page.index("← Dienste") < head, key  # the way back
         nav = page.split('<nav class="main"')[1]
         assert 'aria-current="page"' in nav.split('href="/"')[1][:30]  # under Dienste in the header
     page = client.get("/services/sync").text
@@ -48,7 +49,7 @@ def test_every_service_page_shows_head_status_settings_and_actions_in_that_order
     assert "Automatisch" in page
 
 
-def test_jetzt_ausfuehren_runs_the_step_in_the_background_only_when_on(tmp_path):
+def test_run_now_runs_the_step_in_the_background_only_when_on(tmp_path):
     wf = FakeWealthfolio()
     client, token, wf = _client(tmp_path, wf)
     State(tmp_path).set_fund(FUND, "World", LINES)
@@ -129,7 +130,7 @@ def test_an_old_wealthfolio_is_named_on_the_xray_page(tmp_path):
     assert "Wealthfolio zu alt" in client.get("/services/xray").text
 
 
-def test_positions_without_asset_class_are_shown_on_pruefung_and_the_services_page(tmp_path):
+def test_positions_without_asset_class_are_shown_on_check_and_the_services_page(tmp_path):
     """wealthfolio-importer-addon#141 stage 1: what Wealthfolio counts as "Unknown", with what to do."""
     import json
 
