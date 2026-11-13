@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.0b14
+
+Cleaner service pages, an English first start, and two spending-tracker fixes.
+
+- **Onboarding in English.** A new installation starts in English, with an English / Deutsch switch on the first page (the password setup). Existing installations keep their language.
+- **Back link.** Every service page starts with "← Services" (back to the start page).
+- **Folded lists.** The long fund and ISIN lists on *Countries & Sectors* and *ISINs* are folded, with a count in the heading. The *X-Ray in Wealthfolio* status shows only numbers (funds with and without a list and why, coverage, stored parts and size) instead of listing the ETFs.
+- **FIRE calculator removed** (page *FIRE-Rechner*, `/lookthrough/fire`, `Config.fire`); a saved config that still has the old `fire` section loads as before (the unknown field is ignored) and drops it on the next save.
+- **Spending tracker:** it is now turned on even when the accounts were tracked already, and removing accounts no longer switches the tracker on. Tests cover a comdirect-style setup (the cash account, never the depot); `docs/SPENDING-TEST.md` is the checklist for a real run.
+
 ## 0.1.0b13
 
 - **Dienste**: the gear of *Broker-Sync* opens the broker overview (`/broker`), not the list of broker settings.

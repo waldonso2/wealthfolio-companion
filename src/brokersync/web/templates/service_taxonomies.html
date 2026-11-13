@@ -5,6 +5,7 @@
 {% if written.deliberate %}<p class="muted">{{ _("Bewusst nicht zugeordnet (kein Land und keine Branche): {names}.", names=written.deliberate | join(", ")) }}</p>{% endif %}
 {% else %}<p class="muted">{{ _("Noch nichts in Wealthfolio eingetragen.") }}</p>{% endif %}
 {% if funds %}
+<details class="panel"><summary>{{ _("Quelle je Fonds ({n} ETFs)", n=funds | length) }}</summary>
 {% set SOURCE = {"lines": _("Liste des Anbieters"), "breakdown": _("Länderaufteilung des Anbieters"), "finanzfluss": _("Finanzfluss")} %}
 <div class="table"><table>
   <caption class="sr-only">{{ _("Quelle der Länder und Sektoren je Fonds") }}</caption>
@@ -16,6 +17,7 @@
   {% endfor %}
   </tbody>
 </table></div>
+</details>
 {% else %}<p class="muted">{{ _("Noch kein Fonds mit Positionsliste - siehe X-Ray.") }}</p>{% endif %}
 {% if classes and classes.named %}
 {% set by_name = classes.named.values() | rejectattr("from", "equalto", "firds") | map(attribute="name") | sort | list %}

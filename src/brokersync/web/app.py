@@ -100,7 +100,7 @@ def _create_app(data_dir: Path, *, wealthfolio, adapters, notifier, run_in_threa
         path = request.url.path
         # The first-password page opens without a login, but its POST carries a CSRF token and the one-time
         # code (#89), so it isn't in PUBLIC.
-        if path in PUBLIC or path == "/setup-password" or path.startswith("/static/"):
+        if path in PUBLIC or path in ("/setup-password", "/setup-language") or path.startswith("/static/"):
             return await call_next(request)
         if path == "/metrics" and _metrics_token(request):  # a scraper without a UI login (OPS-04)
             return await call_next(request)

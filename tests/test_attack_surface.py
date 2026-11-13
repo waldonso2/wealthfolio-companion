@@ -25,7 +25,7 @@ from .test_web import csrf, make
 # CSRF token and the setup code, #89), but it opens without a login - after the first password it only
 # redirects to /login.
 PUBLIC_ROUTES = {("GET", "/login"), ("POST", "/login"), ("GET", "/healthz"), ("GET", "/ca.crt"),
-                 ("GET", "/setup-password"), ("POST", "/setup-password")}
+                 ("GET", "/setup-password"), ("POST", "/setup-password"), ("POST", "/setup-language")}
 # POSTs that take no CSRF token: the login only (it has no session yet; wrong passwords go to the brake).
 NO_CSRF = {"/login"}
 

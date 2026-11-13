@@ -85,6 +85,7 @@ EN: dict[str, str] = {
     # Page Dienste (#145)
     "Die Anmeldung läuft gerade schon - bitte kurz warten.": "The login is already in progress - please wait a moment.",
     "Dienste": "Services",
+    "← Dienste": "← Services",
     "Was der Service in dein Wealthfolio schreibt. Jeder Dienst lässt sich einzeln ein- und ausschalten.":
         "What the service writes into your Wealthfolio. Each service can be switched on and off on its own.",
     "schaltet sich ein, sobald die Einstellungen gespeichert sind": "switches on once the settings are saved",
@@ -1236,30 +1237,7 @@ EN: dict[str, str] = {
     "gelassen.":
         "Last entered in Wealthfolio {when}: {written} changed, {manual} left with your own assignments.",
     "Aus Wealthfolio entfernen": "Remove from Wealthfolio",
-    # FIRE-Rechner (#139)
-    "Lean FIRE (75 % der Ausgaben)": "Lean FIRE (75 % of expenses)",
-    "FIRE": "FIRE",
-    "Fat FIRE (150 % der Ausgaben)": "Fat FIRE (150 % of expenses)",
-    "Barista FIRE (mit Teilzeit bis zur Rente)": "Barista FIRE (with part-time work until the pension)",
-    "Ausgaben im Jahr (EUR, ohne Krankenversicherung)": "Expenses a year (EUR, without health insurance)",
-    "Sparrate im Jahr (EUR)": "Savings a year (EUR)",
-    "Vermögen (EUR, leer: aus Wealthfolio)": "Wealth (EUR, empty: from Wealthfolio)",
-    "Alter heute": "Age today",
-    "Alter bei Rückzug aus dem Beruf": "Age when you stop working",
-    "Alter bei Beginn der gesetzlichen Rente": "Age when the statutory pension starts",
-    "Rente netto im Jahr (EUR, heutiger Wert)": "Net pension a year (EUR, today's value)",
-    "Teilzeit-Einkommen netto im Jahr bis zur Rente (EUR, Barista FIRE)":
-        "Net part-time income a year until the pension (EUR, Barista FIRE)",
-    "Rendite nach Inflation (% im Jahr)": "Return after inflation (% a year)",
-    "Entnahmerate (% im Jahr)": "Withdrawal rate (% a year)",
-    "Gewinnanteil eines Verkaufs (%, leer: aus Wealthfolio)": "Gain share of a sale (%, empty: from Wealthfolio)",
-    "Kirchensteuer (%: 0, 8 oder 9)": "Church tax (%: 0, 8 or 9)",
-    "Private Krankenversicherung im Jahr (EUR)": "Private health insurance a year (EUR)",
-    "Zusammenveranlagt (2.000 EUR Sparerpauschbetrag)": "Joint assessment (2,000 EUR saver's allowance)",
-    "Freiwillig gesetzlich versichert (sonst privat)": "Voluntarily insured in the statutory scheme (else private)",
     "X-Ray": "X-Ray",
-    "Kosten (% im Jahr, leer: aus X-Ray)": "Costs (% a year, empty: from X-Ray)",
-    "Zurück zu X-Ray": "Back to X-Ray",
     "weitere ETFs": "other ETFs",
     "direkt": "direct",
     "Summe (EUR)": "Total (EUR)",
@@ -1364,64 +1342,10 @@ EN: dict[str, str] = {
     "Keine lesbare XLSX-Datei.": "Not a readable XLSX file.",
     "Keine lesbare Excel-Datei.": "Not a readable Excel file.",
     "Die Datei enthält keine Positionen.": "The file holds no holdings.",
-    "In der Rente pflichtversichert (KVdR): kein Beitrag auf Kapitalerträge":
-        "Compulsorily insured as a pensioner (KVdR): no contribution on capital income",
-    "Kinderlos (höherer Pflegebeitrag)": "Childless (higher long-term care contribution)",
-    "Aktienfonds (30 % Teilfreistellung)": "Equity funds (30 % partial exemption)",
-    "{label}: bitte eintragen.": "{label}: please fill in.",
-    "{label}: bitte eine ganze Zahl.": "{label}: please a whole number.",
-    "FIRE-Rechner": "FIRE calculator",
-    "Wie viel Vermögen ein Leben von deinem Depot braucht – mit deutscher Abgeltungsteuer, Teilfreistellung, "
-    "Sparerpauschbetrag und Krankenversicherung, in heutigem Geld.":
-        "How much wealth a life on your portfolio needs – with German flat tax, partial exemption, saver's "
-        "allowance and health insurance, in today's money.",
-    "Zurück zur Durchschau": "Back to the look-through",
-    "Aus Wealthfolio: Vermögen {total} EUR.": "From Wealthfolio: wealth {total} EUR.",
-    "Gewinnanteil der Wertpapiere {share} %.": "Gain share of the securities {share} %.",
-    "Vereinfachte Modellrechnung, keine Steuer- oder Anlageberatung. Rechtsstand {year}.":
-        "Simplified model calculation, no tax or investment advice. Law as of {year}.",
     "Ziel": "Goal",
-    "Vermögen nötig": "Wealth needed",
-    "Erreicht in": "Reached in",
     "Alter": "Age",
-    "nie bei dieser Sparrate": "never at this savings rate",
     "erreicht": "reached",
-    "{n} Jahren": "{n} years",
-    "Coast FIRE: mit {coast} EUR heute wächst das Depot ohne weiteres Sparen bis zum Rückzug auf das FIRE-Ziel.":
-        "Coast FIRE: with {coast} EUR today the portfolio grows to the FIRE goal by the time you stop working, "
-        "without saving more.",
-    "Erreicht.": "Reached.",
-    "Noch nicht erreicht.": "Not reached yet.",
-    "Entnahme im Jahr bis zur Rente": "Withdrawal a year until the pension",
-    "Posten": "Item",
     "Ausgaben": "Expenses",
-    "Steuer auf die Gewinne (Satz {rate} %)": "Tax on the gains (rate {rate} %)",
-    "Krankenversicherung": "Health insurance",
-    "Entnahme aus dem Depot": "Withdrawal from the portfolio",
-    "Deine Angaben": "Your details",
-    "Berechnen": "Calculate",
-    "Wie wird gerechnet?": "How is it calculated?",
-    "Brutto-Entnahme: so viel, dass nach Steuer und Krankenversicherung die Ausgaben bleiben. Steuerpflichtig ist "
-    "nur der Gewinnanteil eines Verkaufs, bei Aktienfonds davon 70 % (Teilfreistellung), abzüglich "
-    "Sparerpauschbetrag. Bis zur gesetzlichen Rente trägt das Depot die ganze Entnahme (Barwert dieser Jahre), "
-    "danach nur, was die Rente offen lässt – als dauerhafte Entnahme zur Entnahmerate. Jahre bis zum Ziel mit "
-    "heutigem Vermögen, Sparrate und Rendite nach Inflation. Die Vorabpauschale fehlt: sie wird beim späteren "
-    "Verkauf angerechnet.":
-        "Gross withdrawal: enough that the expenses remain after tax and health insurance. Only the gain share of a "
-        "sale is taxable, for equity funds 70 % of it (partial exemption), less the saver's allowance. Until the "
-        "statutory pension the portfolio carries the whole withdrawal (present value of those years), afterwards "
-        "only what the pension leaves open – as a permanent withdrawal at the withdrawal rate. Years to the goal "
-        "with today's wealth, savings and return after inflation. The advance lump sum (Vorabpauschale) is left "
-        "out: it is credited at the later sale.",
-    "Werte {year}": "Values {year}",
-    "Abgeltungsteuer + Solidaritätszuschlag": "Flat tax + solidarity surcharge",
-    "Teilfreistellung Aktienfonds": "Partial exemption of equity funds",
-    "Sparerpauschbetrag (einzeln / zusammen)": "Saver's allowance (single / joint)",
-    "Kranken- und Pflegeversicherung freiwillig (mit Kind / kinderlos)":
-        "Health and care insurance, voluntary (with child / childless)",
-    "Mindest- und Höchstbemessung im Jahr": "Minimum and maximum basis a year",
-    "FIRE-Rechner: wie viel Vermögen ein Leben vom Depot braucht":
-        "FIRE calculator: how much wealth a life on the portfolio needs",
     # Costs (waldonso2/wealthfolio-importer-addon#142)
     "Gesamtkostenquote": "Total cost ratio",
     "Gesamtkostenquote über (% im Jahr)": "Total cost ratio above (% a year)",
@@ -1431,11 +1355,6 @@ EN: dict[str, str] = {
     "Depotgebühr im Jahr (EUR)": "Custody fee a year (EUR)",
     "Kosten (% im Jahr, leer: aus der Durchschau)": "Costs (% a year, empty: from the look-through)",
     "Laufende Kosten (TER, % im Jahr)": "Ongoing charges (TER, % a year)",
-    "Kosten des Depots {rate} % im Jahr.": "Depot costs {rate} % a year.",
-    "Ohne Kosten": "Without costs",
-    "Gerechnet mit {rate} % Kosten im Jahr, abgezogen von der Rendite nach Inflation.":
-        "Calculated with costs of {rate} % a year, taken off the return after inflation.",
-    "Ohne Kosten wäre FIRE {n} Jahre früher erreicht.": "Without costs FIRE would be reached {n} years earlier.",
     "Laufende Kosten (TER, % im Jahr) für {name}, leer: vom Anbieter":
         "Ongoing charges (TER, % a year) of {name}, empty: from the issuer",
     "Kosten": "Costs",
@@ -1587,6 +1506,14 @@ EN: dict[str, str] = {
     "{n} alte Einträge werden beim nächsten Mal gelöscht.": "{n} old entries are deleted next time.",
     "Fonds mit Liste: {n}": "Funds with a list: {n}",
     "Fonds ohne Liste": "Funds without a list",
+    "Fonds: {n}": "Funds: {n}",
+    "Fonds ohne Liste: {n}": "Funds without a list: {n}",
+    "{n} × {reason}": "{n} × {reason}",
+    "Mittlere Abdeckung der Listen: {pct} %": "Mean coverage of the lists: {pct} %",
+    "Abgelegte Teile: {n} ({kb} KB)": "Stored parts: {n} ({kb} KB)",
+    "Quelle je Fonds ({n} ETFs)": "Source per fund ({n} ETFs)",
+    "Ergänzte ISINs ({n})": "Added ISINs ({n})",
+    "Ohne ISIN ({n})": "Without an ISIN ({n})",
     "Grund": "Reason",
     "Addon installieren": "Install the addon",
     "Das Addon rechnet X-Ray in Wealthfolio aus diesen Listen und den Werten deiner Positionen. <a "

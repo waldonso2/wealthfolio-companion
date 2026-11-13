@@ -260,6 +260,26 @@ def test_a_saved_fixed_colour_scheme_of_before_is_ignored(tmp_path):
     assert c.ui_language == "en" and not hasattr(c, "ui_theme")
 
 
+def test_a_saved_fire_section_of_before_is_ignored(tmp_path):
+    import json
+    from dataclasses import asdict
+
+    from brokersync import config as config_mod
+    from brokersync import crypto
+
+    config_mod.save(tmp_path, config_mod.Config(ui_language="en"))
+    data = {**asdict(config_mod.Config(ui_language="en")), "fire": {"expenses": "30000"}}  # the removed calculator
+    for k in config_mod.NOTIFY_FIELDS:
+        data.pop(k)
+    crypto.write_atomic(tmp_path / "config.enc",
+                        crypto.seal(crypto.data_key(tmp_path), json.dumps(data).encode(), "config"))
+    c = config_mod.load(tmp_path)
+    assert c.ui_language == "en" and not hasattr(c, "fire")
+    config_mod.save(tmp_path, c)  # and it is gone once saved again
+    blob = (tmp_path / "config.enc").read_bytes()
+    assert "fire" not in json.loads(crypto.unseal(crypto.data_key(tmp_path), blob, "config"))
+
+
 def test_the_colours_meet_wcag_aa_in_both_schemes():
     """#105: status text ≥ 4.5:1 on card and page, the traffic light's grey ≥ 3:1, and the counter badge."""
     import re
