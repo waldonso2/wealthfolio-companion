@@ -10,8 +10,8 @@ switching off removes only what the service added. Use your own accounts; write 
 3. Wealthfolio must offer the spending tracker (a version without it ends in "not updated" in the log, nothing else).
 
 ## Turn on
-1. Service page *Ausgaben-Tracker* (`/services/spending`): pick the comdirect cash account, save.
-2. *Dienste*: switch the service on, then *Jetzt ausführen* (or wait for the next run).
+1. Service page *Spending tracker* (`/services/spending`): pick the comdirect cash account, save.
+2. *Services*: switch the service on, then *Run now* (or wait for the next run).
 3. In Wealthfolio's spending tracker check:
    - the tracker is on;
    - the comdirect **cash** account is tracked, the **depot** is not;
@@ -22,7 +22,7 @@ switching off removes only what the service added. Use your own accounts; write 
 5. The log has no "spending tracker not updated".
 
 ## Turn off
-1. Switch the service off on *Dienste* and run (or clear the broker's choice on `/services/spending`).
+1. Switch the service off on *Services* and run (or clear the broker's choice on `/services/spending`).
 2. In Wealthfolio check:
    - the comdirect cash account is no longer tracked;
    - your own account is still tracked;

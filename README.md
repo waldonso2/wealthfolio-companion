@@ -1,13 +1,15 @@
 # Wealthfolio Companion
 
-> **Alpha** – it works and is used every day, but names, pages and settings may still change before 0.1.0.
+> **Beta** – it works, but names, pages and settings may still change before 0.1.0.
 
 Fetches your transactions from your brokers and banks automatically and books them, without duplicates, into your **self-hosted [Wealthfolio](https://wealthfolio.app)**. On top, it adds what Wealthfolio can't do on its own: the countries and sectors of your ETFs, ISINs, logos and a look-through into your ETFs (X-Ray). Set it up once, then everything runs by itself every morning.
 
 - **Trade Republic, Scalable Capital, comdirect, DKB, Deutsche Bank, N26**, any other bank with **FinTS** (Sparkasse, Volksbank …) and any bank with a **PSD2** interface (through Enable Banking, so that bank's data passes through Enable Banking) – [details per bank](docs/BANKS.md)
 - **No duplicates:** whatever is already in Wealthfolio, from a CSV or PDF import too, is recognised
-- **Read-only access** to the brokers; **everything encrypted** (AES-256), the key is not stored with the data
+- **Read-only access** to the brokers; credentials and settings are **encrypted** (AES-256-GCM) and so is the sync database (SQLCipher, where available); the key is not stored with the data
 - **Everything in the web UI**, with a notification on your phone (ntfy) when a TAN is due
+
+**Who it is for:** you run Wealthfolio yourself, you have accounts at the brokers and banks above, and you would rather not enter or import their transactions by hand. It runs next to Wealthfolio on your own server; nothing goes through a service of ours.
 
 ## Contents
 
@@ -56,7 +58,7 @@ flowchart LR
 
 - **Wealthfolio**, self-hosted (3.11 or newer for the X-Ray addon), and its password
 - in Wealthfolio, **two accounts** per broker: a cash account and a securities account ([why](docs/FEATURES.md#booking-model))
-- a **Proxmox VE** server (8 or 9) **or** a computer with **Docker** or **Podman** (amd64 or arm64), for example an **Unraid** server
+- a **Proxmox VE** server **or** a computer with **Docker** or **Podman** (amd64 or arm64), for example an **Unraid** server
 - optionally the **ntfy** app on your phone ([Android](https://play.google.com/store/apps/details?id=io.heckel.ntfy), [iOS](https://apps.apple.com/app/ntfy/id1625396347))
 
 ## Installation
@@ -456,7 +458,7 @@ A backup holds only encrypted data, never the key. **It is complete only togethe
 
 ## First setup
 
-The UI starts in German; select *Einstellungen → Darstellung* to switch it to English (*Settings → Appearance*). The page names below are the English ones.
+A new installation starts in English; the first page also offers *Deutsch*, and *Settings → Appearance* switches the language later. The page names below are the English ones.
 
 1. **Password:** set it with the setup code, which appears only in the console or the container's log.
 2. **Certificate:** confirm the browser's warning the first time. On the page *Security*, download the CA certificate and import it once; after that the connection counts as secure.
@@ -485,13 +487,13 @@ Everything else—reconciliation, X-Ray and costs, the booking model, proxy, log
 
 - Credentials, settings and the sync database are encrypted (AES-256-GCM and SQLCipher). The service's key lives outside the data: in Proxmox sealed with `systemd-creds`, in Docker as a secret.
 - **Master passphrase (optional):** with it, even a copy that includes the key opens nothing. Without the passphrase the data is lost.
-- Read-only access to the brokers; protection against lock-outs (no second wrong PIN or TAN); the UI only over HTTPS, with its own login and throttled failed attempts.
+- Read-only access to the brokers; a guard against bank lock-outs (after a rejected PIN the service stops contacting that bank until you save the credentials again); the UI over HTTPS by default, with its own login and throttled failed attempts.
 - Proxmox installs and updates accept a release only with the build provenance of this repository's release workflow and matching checksums - no GitHub login needed; updates are staged, health-checked and rolled back on failure.
 - The page *Security* always shows what is protected and how. Please report vulnerabilities privately: [SECURITY.md](SECURITY.md).
 
 ## How it came about
 
-This project was built entirely on a phone, in conversation with Claude: code, tests, reviews and releases.
+This project is built together with Claude (Anthropic's AI assistant): code, tests, reviews and releases.
 
 ## Thanks
 

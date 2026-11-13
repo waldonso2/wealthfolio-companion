@@ -63,6 +63,10 @@ Important modules include:
 | notify.py | Sends notifications through ntfy |
 | lookthrough.py / xray.py | ETF holdings, exposure, overlap, and concentration analysis |
 | costs.py | Investment-cost estimates |
+| assets.py / firds.py | ISIN-to-asset mapping, completing missing ISINs and asset classes in Wealthfolio |
+| logos.py / spending.py / xray_addon.py | The remaining optional services: logos, spending tracker, fund lists for the X-Ray addon |
+| history.py / reset.py / audit.py / repair.py / duplicates.py | Opening positions and money from before the bank history, starting a broker over, read-only account checks, repairs, duplicate finder |
+| updates.py / provenance.py | New-release notice; offline verification of release provenance |
 | web/routes/ | UI endpoints, grouped by functional area |
 
 ## Sync lifecycle
@@ -127,7 +131,7 @@ Sensitive values such as credentials, tokens, IBANs, and account numbers are red
 
 ## Web application
 
-The web app is built with FastAPI and groups endpoints by functional area: setup and authentication, services, brokers, settings, reconciliation, securities, notifications, look-through, and security. Shared application state is held in an application context that provides access to the vault, persistent state, sync runner, UI configuration, and background jobs.
+The web app is built with FastAPI and groups endpoints by functional area: setup and authentication, services, brokers, settings, reconciliation, securities, notifications, look-through, and security. Every service that writes into Wealthfolio (broker sync, countries and sectors, ISINs, logos, spending tracker, X-Ray in Wealthfolio) has its own switch on the start page (`routes/services.py`) and its own page at `/services/<service>` with a back link, status, settings and actions. The routers are listed in `web/routes/__init__.py`; the duplicate finder's router is currently kept out of the application. Shared application state is held in an application context that provides access to the vault, persistent state, sync runner, UI configuration, and background jobs.
 
 The UI supports German and English. Translation keys are maintained in the internationalization module and checked by tests so that user-facing UI strings have English equivalents. Logs, broker-provided error text, and certain external messages remain in their original form.
 
