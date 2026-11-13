@@ -68,6 +68,16 @@ def setup_password_page(request: Request, ctx: Ctx):
     return ctx.render(request, "setup_password.html", code=request.query_params.get("code", "")[:64])
 
 
+@router.post("/setup-language")
+def setup_language(request: Request, ctx: Ctx, language: str = Form(...)):
+    """The language switch of the first page: only while no password is set (the page is open to anyone then)."""
+    if ctx.vault.load().get("ui_password_hash"):
+        return RedirectResponse("/login", 303)
+    if language in ("de", "en"):
+        ctx.update(lambda c: setattr(c, "ui_language", language))
+    return RedirectResponse("/setup-password", 303)
+
+
 @router.post("/setup-password")
 def setup_password(request: Request, ctx: Ctx, password: str = Form(...), password2: str = Form(...),
                    code: str = Form("")):

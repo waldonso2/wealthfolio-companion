@@ -99,6 +99,7 @@ def test_the_container_migrates_prints_the_setup_code_and_serves(tmp_path, monke
     assert served == [{"host": "0.0.0.0", "port": 8090, "certfile": None, "keyfile": None,
                        "redirect_port": None}]
     assert load(data).services == {}  # a new install: every service starts off
+    assert load(data).ui_language == "en"  # and starts in English
 
 
 def test_the_updates_page_says_how_a_container_is_updated(tmp_path, monkeypatch):
