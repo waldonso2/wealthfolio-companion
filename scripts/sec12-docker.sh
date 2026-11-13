@@ -16,6 +16,8 @@
 #   bash sec12-docker.sh clean        removes containers, volumes and the work folder
 # The result goes to /root/sec12-docker-report.txt (no secrets in it). PREV overrides the older release to start from.
 set -uo pipefail
+# `pct enter` and `pct exec` start a shell without /usr/local/bin, where cosign is installed.
+export PATH="/usr/local/bin:/usr/local/sbin:$PATH"
 
 REPO=waldonso2/wealthfolio-companion
 RAW="https://raw.githubusercontent.com/$REPO/main"
@@ -48,9 +50,9 @@ previous() {
   curl -fsSL --retry 6 --proto '=https' "https://api.github.com/repos/$REPO/releases?per_page=5" |
     grep -o '"tag_name": *"v[^"]*"' | sed -n '2s/.*"v\([^"]*\)"/\1/p'
 }
-datafiles() {  # the sealed files of the data volume; SQLite's -wal/-shm come and go
+datafiles() {  # the sealed files of the data volume; SQLite's -wal/-shm and the lock files come and go
   docker run --rm -v sec12docker_companion-data:/data:ro --entrypoint sh "$(running_image)" -c \
-    "cd /data && find . -type f ! -name 'before-restore-*' ! -name '*-wal' ! -name '*-shm' | LC_ALL=C sort | tr '\n' ' '"
+    "cd /data && find . -type f ! -name 'before-restore-*' ! -name '*-wal' ! -name '*-shm' ! -name '*.lock' | LC_ALL=C sort | tr '\n' ' '"
 }
 
 install_cosign() {  # the README's pinned cosign 3.0.6 and the checksums of sigstore's own installer
@@ -61,9 +63,12 @@ install_cosign() {  # the README's pinned cosign 3.0.6 and the checksums of sigs
     aarch64) a=arm64 s=bedac92e8c3729864e13d4a17048007cfafa79d5deca993a43a90ffe018ef2b8 ;;
     *) return 1 ;;
   esac
-  curl -fsSLo /tmp/cosign --retry 6 "https://github.com/sigstore/cosign/releases/download/v3.0.6/cosign-linux-$a" &&
-    echo "$s  /tmp/cosign" | sha256sum -c - >/dev/null && install -m 755 /tmp/cosign /usr/local/bin/cosign
+  local rc=0
+  { curl -fsSLo /tmp/cosign --retry 6 "https://github.com/sigstore/cosign/releases/download/v3.0.6/cosign-linux-$a" &&
+      echo "$s  /tmp/cosign" | sha256sum -c - >/dev/null &&
+      install -m 755 /tmp/cosign /usr/local/bin/cosign; } || rc=$?
   rm -f /tmp/cosign
+  return "$rc"  # not rm's status: a failed download must fail the preflight
 }
 
 preflight() {
@@ -73,7 +78,8 @@ preflight() {
   docker info >/dev/null 2>&1 || { echo "The Docker daemon does not answer." >&2; exit 2; }
   { docker compose version >/dev/null 2>&1 || docker-compose version >/dev/null 2>&1; } ||
     { echo "Docker Compose is missing." >&2; exit 2; }
-  install_cosign || { echo "cosign 3 could not be installed." >&2; exit 2; }
+  install_cosign || { echo "cosign 3 could not be downloaded or its checksum did not match." >&2; exit 2; }
+  cosign version >/dev/null 2>&1 || { echo "cosign is installed but does not run (PATH: $PATH)." >&2; exit 2; }
   if docker ps -a --format '{{.Names}}' | grep -qx companion; then
     echo "A container named 'companion' exists. Use a disposable host, or remove it first." >&2; exit 2
   fi
@@ -98,9 +104,14 @@ scenario_12() {  # install a verified release
   local ref
   ref="$(cd "$WORK" && ./pull-verified-image.sh --env .env "$old" 2>"$WORK/verify.log")"
   check "pull-verified-image.sh accepts v$old" test -n "$ref"
+  if [[ -z "$ref" ]]; then
+    say "      $(tail -n 3 "$WORK/verify.log" | tr '\n' ' ')"
+    return 1  # nothing below can run without a verified image
+  fi
   check "the reference is a digest, not a tag" bash -c "[[ '$ref' =~ @sha256:[0-9a-f]{64}$ ]]"
   up; check "the container starts and answers" wait_healthy
-  check "it runs exactly the verified reference" test "$(running_image)" == "$(image_ref)"
+  check "it runs exactly the verified reference" bash -c "[[ -n '$(image_ref)' && '$(running_image)' == '$(image_ref)' ]]"
+  healthy || say "      $(cd "$WORK" && docker logs companion 2>&1 | tail -n 5 | tr '\n' ' ')"
   check "the redirect on 8090 answers 308" test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8090/)" == 308
   check "the setup code is in the log" bash -c "docker logs companion 2>&1 | grep -q 'Setup code'"
 }
@@ -121,8 +132,8 @@ scenario_13() {  # everything else is refused
     --certificate-github-workflow-repository "$REPO" --certificate-github-workflow-ref refs/heads/main
     --certificate-github-workflow-trigger push)
   check "control: cosign's own release image verifies with ITS identity (so the next check proves the policy)" \
-    cosign verify --certificate-identity-regexp '^https://github.com/sigstore/cosign/' \
-      --certificate-oidc-issuer https://token.actions.githubusercontent.com ghcr.io/sigstore/cosign/cosign:v3.0.6
+    cosign verify --certificate-identity keyless@projectsigstore.iam.gserviceaccount.com \
+      --certificate-oidc-issuer https://accounts.google.com ghcr.io/sigstore/cosign/cosign:v3.0.6
   check "an image signed by someone else is refused (the same image, our policy)" \
     bash -c "! cosign verify $(printf '%q ' "${policy[@]}") ghcr.io/sigstore/cosign/cosign:v3.0.6 >/dev/null 2>&1"
   check "an unsigned image is refused (alpine)" \
@@ -146,7 +157,7 @@ scenario_update() {  # old -> new, the data volume stays
   check "v$new is verified" test -n "$ref"
   check "the new image is pulled" pull
   up; check "the new container answers" wait_healthy
-  check "it runs exactly the verified reference" test "$(running_image)" == "$(image_ref)"
+  check "it runs exactly the verified reference" bash -c "[[ -n '$(image_ref)' && '$(running_image)' == '$(image_ref)' ]]"
   after="$(datafiles)"
   check "the data files are the same ($before)" test "$before" == "$after"
   check "the data opens (security-status)" bash -c "docker exec companion wealthfolio-companion security-status >/dev/null"
@@ -200,7 +211,10 @@ case "${1:-}" in
     [[ -n "$new" && -n "$old" ]] || { echo "latest and previous release unknown" >&2; exit 2; }
     say "SEC-12 Docker run on $(hostname), $(date -u +%FT%TZ): start with $old, update to $new"
     prepare
-    scenario_12 "$old"
+    if ! scenario_12 "$old"; then
+      say ""; say "Stopped after scenario 12: $FAILS failed. Report: $REPORT"
+      exit 1
+    fi
     id="$(container_id)"; ref="$(image_ref)"
     scenario_13
     scenario_14 "$id" "$ref"

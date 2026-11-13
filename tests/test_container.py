@@ -99,6 +99,7 @@ def test_the_container_migrates_prints_the_setup_code_and_serves(tmp_path, monke
     assert served == [{"host": "0.0.0.0", "port": 8090, "certfile": None, "keyfile": None,
                        "redirect_port": None}]
     assert load(data).services == {}  # a new install: every service starts off
+    assert load(data).ui_language == "en"  # and starts in English
 
 
 def test_the_updates_page_says_how_a_container_is_updated(tmp_path, monkeypatch):
@@ -111,3 +112,21 @@ def test_the_updates_page_says_how_a_container_is_updated(tmp_path, monkeypatch)
     page = client.get("/updates").text
     assert "pull-verified-image.sh --env .env" in page and "docker compose pull" in page
     assert 'name="auto_update"' not in page
+
+
+def test_an_install_with_a_password_but_no_config_keeps_its_language(tmp_path, monkeypatch):
+    from brokersync import security
+    from brokersync.config import load
+
+    key = tmp_path / "key"
+    key.write_text("k" * 44)
+    data = tmp_path / "data"
+    data.mkdir()
+    monkeypatch.setenv("COMPANION_DATA", str(data))
+    monkeypatch.setenv("COMPANION_KEY_FILE", str(key))
+    from brokersync.vault import Vault
+
+    Vault(data).update(lambda v: v.update(ui_password_hash="x"))  # a password, but no config ever saved
+    assert not (data / "config.enc").exists()
+    security.migrate(data)
+    assert load(data).ui_language == "de" and load(data).services == {}

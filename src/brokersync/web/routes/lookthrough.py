@@ -8,7 +8,6 @@ or uploaded; until then it is one line of its own, never guessed.
 
 from __future__ import annotations
 
-import dataclasses
 import json
 import logging
 import re
@@ -22,7 +21,7 @@ from fastapi.responses import HTMLResponse
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import UploadFile as StarletteUpload
 
-from ... import fire, lookthrough, meta_keys, xray
+from ... import lookthrough, meta_keys, xray
 from ...sync import AlreadyRunning
 from ...wealthfolio import WealthfolioError
 from .. import inputs
@@ -291,34 +290,6 @@ async def lookthrough_upload(request: Request, ctx: Ctx):
     return redirect(request, "/lookthrough", text)
 
 
-# ── FIRE (fire.py) ───────────────────────────────────────────────────────────
-# (field of fire.Inputs, label, kind, minimum, maximum, default as typed); percent: typed in %, stored as share.
-FIRE_FIELDS = [
-    ("expenses", N_("Ausgaben im Jahr (EUR, ohne Krankenversicherung)"), "money", 0, 10_000_000, ""),
-    ("savings", N_("Sparrate im Jahr (EUR)"), "money", 0, 10_000_000, "0"),
-    ("capital", N_("Vermögen (EUR, leer: aus Wealthfolio)"), "money", 0, 1e11, ""),
-    ("age", N_("Alter heute"), "int", 16, 100, "40"),
-    ("retire_age", N_("Alter bei Rückzug aus dem Beruf"), "int", 16, 100, "55"),
-    ("pension_age", N_("Alter bei Beginn der gesetzlichen Rente"), "int", 50, 100, "67"),
-    ("pension", N_("Rente netto im Jahr (EUR, heutiger Wert)"), "money", 0, 1_000_000, "0"),
-    ("part_time", N_("Teilzeit-Einkommen netto im Jahr bis zur Rente (EUR, Barista FIRE)"), "money", 0, 1_000_000,
-     "0"),
-    ("real_return", N_("Rendite nach Inflation (% im Jahr)"), "percent", -10, 20, "5"),
-    ("costs", N_("Kosten (% im Jahr, leer: aus X-Ray)"), "percent", 0, 5, ""),
-    ("safe_rate", N_("Entnahmerate (% im Jahr)"), "percent", 1, 10, "3,5"),
-    ("gain_share", N_("Gewinnanteil eines Verkaufs (%, leer: aus Wealthfolio)"), "percent", 0, 100, ""),
-    ("church", N_("Kirchensteuer (%: 0, 8 oder 9)"), "percent", 0, 9, "0"),
-    ("private", N_("Private Krankenversicherung im Jahr (EUR)"), "money", 0, 200_000, "0"),
-]
-FIRE_FLAGS = [("joint", N_("Zusammenveranlagt (2.000 EUR Sparerpauschbetrag)")),
-              ("gkv", N_("Freiwillig gesetzlich versichert (sonst privat)")),
-              ("kvdr", N_("In der Rente pflichtversichert (KVdR): kein Beitrag auf Kapitalerträge")),
-              ("childless", N_("Kinderlos (höherer Pflegebeitrag)")),
-              ("equity_fund", N_("Aktienfonds (30 % Teilfreistellung)"))]
-FIRE_TARGETS = {"lean": N_("Lean FIRE (75 % der Ausgaben)"), "regular": N_("FIRE"),
-                "fat": N_("Fat FIRE (150 % der Ausgaben)"), "barista": N_("Barista FIRE (mit Teilzeit bis zur Rente)")}
-
-
 def _plain(value: str) -> str:
     """Thousands separators out ("30.000", "30,000.50"): ``inputs.decimal`` takes "," and "." as decimal mark."""
     value = value.replace(" ", "").replace("\xa0", "")
@@ -327,74 +298,3 @@ def _plain(value: str) -> str:
     if re.fullmatch(r"-?\d{1,3}(,\d{3})+(\.\d+)?", value):
         return value.replace(",", "")
     return value
-
-
-def _fire_inputs(saved: dict[str, str], depot: lookthrough.Depot, cost: Decimal | None) -> fire.Inputs | None:
-    if not saved.get("expenses"):
-        return None
-    values: dict = {}
-    for key, _, kind, *_rest in FIRE_FIELDS:
-        raw = saved.get(key, "")
-        if raw == "":
-            continue
-        number = Decimal(raw)
-        values[key] = int(number) if kind == "int" else float(number)
-    values.setdefault("capital", float(depot.total))
-    values.setdefault("costs", float(cost or 0))
-    if "gain_share" not in values and depot.gain_share is not None:
-        values["gain_share"] = float(depot.gain_share)
-    for key, _ in FIRE_FLAGS:
-        values[key] = saved.get(key, "1" if key in ("gkv", "equity_fund") else "") == "1"
-    return fire.Inputs(**values)
-
-
-@router.get("/lookthrough/fire", response_class=HTMLResponse)
-def fire_page(request: Request, ctx: Ctx):
-    if time.time() - ctx.depot_at > READ_SECONDS:
-        from .overview import launch
-
-        launch(ctx, N_("X-Ray"), lambda lang: _read(ctx, ctx.cfg()), language(request))
-    saved = ctx.cfg().fire
-    lang = language(request)
-
-    def shown(key: str, kind: str, default: str) -> str:
-        raw = saved.get(key)
-        if raw is None or raw == "":
-            return default if key not in ("capital", "gain_share", "costs") else ""
-        number = Decimal(raw) * (100 if kind == "percent" else 1)
-        return str(int(number)) if kind == "int" else re.sub(r"[,.]00$", "", money(number, lang))
-
-    cost = lookthrough.cost(ctx.state, ctx.depot, ctx.cfg()).rate
-    inputs_ = _fire_inputs(saved, ctx.depot, cost)
-    return ctx.render(request, "fire.html", fields=[(k, label, kind, shown(k, kind, d)) for k, label, kind, _, _, d
-                                                    in FIRE_FIELDS],
-                      flags=[(k, label, saved.get(k, "1" if k in ("gkv", "equity_fund") else "") == "1")
-                             for k, label in FIRE_FLAGS],
-                      result=fire.plan(inputs_) if inputs_ else None, inputs=inputs_, labels=FIRE_TARGETS,
-                      free=fire.plan(dataclasses.replace(inputs_, costs=0)) if inputs_ and inputs_.costs else None,
-                      depot_cost=cost,
-                      depot_total=ctx.depot.total, gain_share=ctx.depot.gain_share, wf_error=ctx.depot_error,
-                      rules=fire)
-
-
-@router.post("/lookthrough/fire")
-async def fire_save(request: Request, ctx: Ctx):
-    form = await request.form()
-    saved: dict[str, str] = {}
-    try:
-        for key, label, kind, low, high, _ in FIRE_FIELDS:
-            value = _plain(str(form.get(key) or "").strip())
-            if not value:
-                continue
-            number = inputs.decimal(value, label, minimum=Decimal(str(low)), maximum=Decimal(str(high)))
-            if kind == "int" and number != int(number):
-                raise inputs.Invalid(N_("{label}: bitte eine ganze Zahl."), label=label)
-            saved[key] = str(number / 100 if kind == "percent" else number)
-        if not saved.get("expenses"):
-            raise inputs.Invalid(N_("{label}: bitte eintragen."), label=FIRE_FIELDS[0][1])
-    except inputs.Invalid as e:
-        return redirect(request, "/lookthrough/fire", e.text(language(request)), "error")
-    for key, _ in FIRE_FLAGS:
-        saved[key] = "1" if form.get(key) else "0"
-    ctx.update(lambda c: setattr(c, "fire", saved))
-    return redirect(request, "/lookthrough/fire", tr(request, "Gespeichert."))

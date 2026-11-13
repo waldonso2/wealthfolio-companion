@@ -69,9 +69,10 @@ class Config:
     lookthrough_enabled: bool = False
     # Write the funds' countries and sectors into Wealthfolio's taxonomies (replaces only Yahoo's AUTO values).
     lookthrough_write: bool = False
+    # With the taxonomies service on: ask ESMA's FIRDS (the ISIN only) for the asset class of a position that has none
+    # (brokersync.firds, #185).
+    asset_class_lookup: bool = False
     xray_limits: dict[str, str] = field(default_factory=dict)
-    # Page FIRE: the user's inputs as text (fire.Inputs' fields); empty capital / gain share: from Wealthfolio.
-    fire: dict[str, str] = field(default_factory=dict)
     # Per broker key its fees as text (#142, costs.Model's fields: fixed, percent, spread, custody); empty: unknown.
     cost_models: dict[str, dict[str, str]] = field(default_factory=dict)
     # "auto": sessions are kept, the timer fetches. "safe": every fetch needs a fresh login in the UI, the
@@ -81,6 +82,8 @@ class Config:
     # GitHub every ``update_interval`` seconds. In the host tier, so it works while the data is locked.
     auto_update: bool = False
     update_interval: int = 60
+    # Days a release must have been published before the automatic update installs it (0 = at once).
+    update_delay: int = 0
     # Page Darstellung: "de" / "en"; the font ("" = the one chosen in Wealthfolio, "sans", "serif", "mono") and the
     # colours ("system" = the device's, "light", "dark"); the header's symbol turns them round until logout (#123).
     # Not "ui_theme": a fixed scheme stored under that name before #123 stays ignored.
@@ -124,7 +127,7 @@ _FLAGS = {"taxonomies": "lookthrough_write", "logos": "logos_enabled"}
 
 # The host tier (notify.enc): readable while the data is locked - ntfy and the automatic update.
 NOTIFY_FIELDS = ("public_url", "ntfy_server", "ntfy_topic", "ntfy_token", "ntfy_details", "auto_update",
-                 "update_interval")
+                 "update_interval", "update_delay")
 
 
 def _read(path: Path, key: bytes, purpose: str) -> dict:

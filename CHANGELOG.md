@@ -1,5 +1,63 @@
 # Changelog
 
+## 0.1.0b14
+
+Cleaner service pages, an English first start, and two spending-tracker fixes.
+
+- **Onboarding in English.** A new installation starts in English, with an English / Deutsch switch on the first page (the password setup). Existing installations keep their language.
+- **Back link.** Every service page starts with "← Services" (back to the start page).
+- **Folded lists.** The long fund and ISIN lists on *Countries & Sectors* and *ISINs* are folded, with a count in the heading. The *X-Ray in Wealthfolio* status shows only numbers (funds with and without a list and why, coverage, stored parts and size) instead of listing the ETFs.
+- **FIRE calculator removed** (page *FIRE-Rechner*, `/lookthrough/fire`, `Config.fire`); a saved config that still has the old `fire` section loads as before (the unknown field is ignored) and drops it on the next save.
+- **Spending tracker:** it is now turned on even when the accounts were tracked already, and removing accounts no longer switches the tracker on. Tests cover a comdirect-style setup (the cash account, never the depot); `docs/SPENDING-TEST.md` is the checklist for a real run.
+
+## 0.1.0b13
+
+- **Dienste**: the gear of *Broker-Sync* opens the broker overview (`/broker`), not the list of broker settings.
+- **Unbekannt**: an amount of 0 is accepted (free shares, a sale at 0); shares and ratio must still be positive. A button *Ignorieren* hides a booking for good: it is never booked and never listed again.
+- **Exchange proposal** (#186, #187): a list *Alte Position in Wealthfolio* next to *Tausch buchen* offers the open positions of the broker's securities account (name and symbol); the chosen one is the old position, for when neither its ISIN nor its name matches the broker's. *automatisch suchen* (the default) changes nothing. If Wealthfolio does not answer when the page opens, a field for the symbol takes its place.
+
+## 0.1.0b12
+
+- **Exchange proposal** (#186, #187): the old position is also found when its name in Wealthfolio differs from Trade Republic's in case, spacing or by a suffix (one contained in the other, at least 8 characters, exactly one holding). The list in the error message shows up to 80 positions instead of 12.
+
+## 0.1.0b11
+
+- **Exchange proposal: the error says what was looked at** (#186, #187). When the old position cannot be found, the message now lists the names and symbols of the positions the securities account holds (no amounts), so the cause - another account, another name, a closed position - can be seen at once. Cash is recognised whatever the case of its type.
+
+## 0.1.0b10
+
+Fix for the exchange proposal of 0.1.0b9 (#186, #187).
+
+- **"The old position was not found in Wealthfolio."** The old position was looked up by the ISIN the sync had learned or by a symbol equal to the ISIN; an import books a security under the user's own ticker, so neither matched. It is now also found by the ISIN in the asset's own data (metadata or symbol) and, when exactly one holding has the broker's name, by that name.
+
+## 0.1.0b9
+
+Trade Republic dividend reinvestments are really booked now (#188, #189), and an exchange into a new ISIN (reverse split) can be booked from a proposal (#186, #187).
+
+- **Correction of 0.1.0b3.** The buy of the reinvested shares (#188) was meant to read the share count from the details' row *Aktien*; the app's rows are called *Aktien hinzugefügt*, and the count is written with a point (`0.726204`), where the old reading would have taken it for German notation and made it 726204. Neither case booked anything wrong - the row name did not match, so the event stayed in *Unbekannt* - but the feature never worked on real data. Both are fixed: the row, and a number reader (`tr._number`) for the two notations the app uses (German with a comma and a currency sign, plain with a point); an ambiguous `1.234` is refused.
+- **The cash leg** (`SSP_CORPORATE_ACTION_CASH`, #189) is the dividend itself: booked as a DIVIDEND with the net amount and the tax from the rows *Bruttoertrag*, *Steuer* and *Gesamt*, only when they add up to the event's amount.
+- To get the events already in *Unbekannt* booked: update, then *Ab Startdatum neu abrufen* in the broker's settings and fetch once (the normal fetch only looks at recent events). Do not complete them by hand first - they are booked from the details and would exist twice.
+- **Exchange of one ISIN for another** (#186, #187). The two `SSP_CORPORATE_ACTION_NO_CASH` events of such an exchange (same moment, same rows: *Aktien entfernt* of the old security, *Aktien hinzugefügt* of the new one) are paired when exactly two events with different ISINs and readable share counts match; *Unbekannt* then shows a proposal. Nothing is booked before your click on *Tausch buchen*: the cost basis of the removed shares is taken from the old position in Wealthfolio (scaled to the shares removed; refused when Wealthfolio holds fewer shares or has no basis), and the next fetch books two unpaired, external transfers - the old position out, the new one in one second later at cost basis per share - like the CSV import does, so no gain or loss appears. The unknown payload of a corporate action now also keeps the ISIN.
+
+## 0.1.0b8
+
+Waiting before automatic updates, a newer install engine, newer dependencies, and more for the next report of a corporate action.
+
+- **Automatic update with a waiting time** (*Updates* page, *Wait after publication (days)*, 0 to 30, off by default). The container installs a version only once it has been published that long: a faulty or tampered release meets the people who update at once first. It asks `api.github.com` for the publication date; if GitHub names none, nothing is installed. With a waiting time it looks at most every 15 minutes. The setting is in the host tier like the switch itself, so it works while the data is locked.
+- **Install engine (community-scripts/core) moved** from `59574c3` to `5514fdf` (#211). The changes were read: no new hosts except `github.com` and `apt.postgresql.org` (another app's repository), no new download-and-run, an `eval` that only puts back the shell's own saved trap, and extended telemetry texts for failed or cancelled host tools - the same data classes as before. The variables this script sets (`var_*`) are unchanged. Reason for care: it runs as root on the Proxmox host, so a test install belongs to this release.
+- **Trade Republic corporate actions** (#186, #187, #189): an `SSP_CORPORATE_ACTION*` event the service cannot book yet now keeps the text rows of its details view in the stored payload (at most 30 short rows, masked like the rest). A reverse split's ratio, share counts and new ISIN are in those rows, so the next report carries what a booking needs; nothing is booked or guessed from them.
+- Dependencies: pydantic 2.14.2 with pydantic-core 2.50.2 (now one Dependabot group), websockets 17.4, setuptools 84.2.1, pytest 9.2.0. `curl-cffi` 0.17.0 (used by Trade Republic's web login) waits for a real login test.
+
+## 0.1.0b7
+
+Asset classes from ESMA's FIRDS register (#185).
+
+- *Länder & Sektoren* service page: *Anlageklasse beim ESMA-Register nachfragen* (off by default). A position that is still without an asset class in Wealthfolio after the fund-name rule is looked up by its ISIN in FIRDS, the public register of the European securities regulator (`registers.esma.europa.eu`; the ISIN is all that is sent). Shares become Equity, debt Fixed income (money market instruments are left out), funds by their principal investment type (equities, bonds, commodities, real estate). Mixed and "other" funds, derivatives, structured products and unknown ISINs stay without a class; nothing is guessed, and an ISIN whose CFI codes disagree gets none.
+- The class is written with 100 % as an automatic value, only when Wealthfolio has that category and the asset has no class at all (yours are never touched). The page names which assets got their class from the name and which from the register.
+- What the register listed is kept per ISIN: asked once, an ISIN it does not list again after 30 days. An answer that is not a clean 200 (5xx, timeout, redirect, odd body) records nothing and ends the pass.
+- *Über* and the network description name the new destination.
+- Checked against the live register: Daimler Truck (shares), iShares Core MSCI World (equity ETF), Vanguard USD Treasury Bond (bond ETF), a Bund (debt), Amundi Core Stoxx Europe 600 (swap ETF, "other": none).
+
 ## 0.1.0b6
 
 Dependency updates.

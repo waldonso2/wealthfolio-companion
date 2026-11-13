@@ -44,6 +44,12 @@ class Kind(StrEnum):
     SECURITIES_CASH = "SECURITIES_CASH"
     # A stock split or reverse split: ``ratio`` new shares per old share (1:10 reverse = 0.1); no money moves.
     SPLIT = "SPLIT"
+    # One ISIN exchanged for another (a reverse split into a new instrument): the old position leaves, the new one
+    # arrives, no money moves. Each leg is an unpaired TRANSFER_OUT / TRANSFER_IN of the securities account that
+    # carries the cost basis as ``net`` (unit price = ``net`` / ``shares``) and is marked external, as the CSV
+    # import books it (waldonso2/wealthfolio-importer-addon#125).
+    SECURITY_OUT = "SECURITY_OUT"
+    SECURITY_IN = "SECURITY_IN"
     # An event type the adapter doesn't know. It is never dropped: the sync
     # stores and reports it (AC 10), and nothing is booked for it.
     UNKNOWN = "UNKNOWN"

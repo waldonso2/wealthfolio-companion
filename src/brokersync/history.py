@@ -61,6 +61,9 @@ def _money_leg(a: dict, at: datetime, buy: bool) -> Transaction:
 # What the user can make of an unknown booking on *Unbekannt* (#132): a trade with the booking's money, a
 # security delivered in or out without money, or a split.
 COMPLETION_KINDS = ("buy", "sell", "in", "out", "split")
+# Not in the form: a proposal for an exchange of ISINs (``tr.py`` pairs the two events, ``swap.py`` takes the cost
+# basis from Wealthfolio) the user confirms with one click.
+SWAP_KINDS = ("swap_out", "swap_in")
 
 
 def completion(tx_id: str, c: dict) -> Transaction:
@@ -76,6 +79,9 @@ def completion(tx_id: str, c: dict) -> Transaction:
     kind = c["kind"]
     if kind == "split":
         return Transaction(kind=Kind.SPLIT, net=Decimal(0), ratio=Decimal(c["ratio"]), **common)
+    if kind in SWAP_KINDS:  # the cost basis travels with the shares: amount = the old position's cost basis
+        leg = Kind.SECURITY_OUT if kind == "swap_out" else Kind.SECURITY_IN
+        return Transaction(kind=leg, net=amount, shares=shares, gross=amount, **common)
     if kind == "buy":
         return Transaction(kind=Kind.BUY, net=amount, shares=shares, gross=amount - fee - tax, fee=fee, tax=tax,
                            **common)

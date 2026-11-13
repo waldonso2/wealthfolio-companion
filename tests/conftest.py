@@ -13,10 +13,11 @@ def _no_issuer_requests(monkeypatch):
     # X-Ray fetches iShares' lists after every run; no test reaches iShares (they answer "not found").
     import httpx
 
-    from brokersync import lookthrough
+    from brokersync import firds, lookthrough
 
     real = lookthrough.Sources
     monkeypatch.setattr(lookthrough, "PAUSE", 0)
+    monkeypatch.setattr(firds, "PAUSE", 0)
     monkeypatch.setattr(lookthrough, "KNOWN", {})
     monkeypatch.setattr(lookthrough, "PRODUCTS", {})  # the shipped list: tests ask their own fund finders
     monkeypatch.setattr(lookthrough, "Sources",

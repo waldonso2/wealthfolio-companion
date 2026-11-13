@@ -25,10 +25,12 @@ def update(state: State, wf: WealthfolioClient, cfg: Config) -> None:
     ours = set(json.loads(state.meta(KEY) or "[]"))
     if not wanted and not ours:
         return  # never asks Wealthfolio while nobody turned it on
-    tracked = wf.spending_settings().get("accountIds") or []
+    settings = wf.spending_settings()
+    tracked = settings.get("accountIds") or []
     keep = [a for a in tracked if a in wanted or a not in ours]
     new = keep + sorted(wanted - set(keep))
-    if new != tracked:
-        wf.set_spending_accounts(new)
+    # The tracker is also turned on when every wanted account was tracked already but the tracker is off.
+    if new != tracked or (wanted and not settings.get("enabled")):
+        wf.set_spending_accounts(new, enable=bool(wanted))
     # Only what the sync added counts as ours; an account the user tracked before stays theirs.
     state.set_meta(KEY, json.dumps(sorted((ours & wanted) | (wanted - set(tracked)))))

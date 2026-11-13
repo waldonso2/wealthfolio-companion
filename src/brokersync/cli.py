@@ -237,7 +237,8 @@ def _update_due(args) -> int:
     from .config import load_notify
 
     cfg = load_notify(data_dir())
-    asked, version = updates.due(cfg.auto_update, cfg.update_interval, __version__, args.since)
+    asked, version = updates.due(cfg.auto_update, cfg.update_interval, __version__, args.since,
+                                 delay=cfg.update_delay)
     if asked:
         print("checked")
     if version:

@@ -9,7 +9,7 @@
     <p class="muted">{{ _(s.text) }}{% if pending == s.key and not s.on %} · {{ _("schaltet sich ein, sobald die Einstellungen gespeichert sind") }}{% endif %}</p>
     {% if s.key == "xray" and s.on and xray %}<p class="muted">{% if xray.ok %}{{ _("Zuletzt abgelegt: {when}", when=xray.at | local) }}{% else %}{{ _("Fehler: {error}", error=xray.error | redact) }}{% endif %}</p>{% endif %}
   </div>
-  <a class="gear" href="{{ '/brokers' if s.key == 'sync' else '/services/' ~ s.key }}" title="{{ _('Einstellungen: {name}', name=_(s.name)) }}" aria-label="{{ _('Einstellungen: {name}', name=_(s.name)) }}">{{ icon("gear") }}</a>
+  <a class="gear" href="{{ '/broker' if s.key == 'sync' else '/services/' ~ s.key }}" title="{{ _('Einstellungen: {name}', name=_(s.name)) }}" aria-label="{{ _('Einstellungen: {name}', name=_(s.name)) }}">{{ icon("gear") }}</a>
   <form method="post" action="/services/{{ s.key }}">
     <input type="hidden" name="csrf" value="{{ csrf }}">
     <button class="switch" role="switch" aria-checked="{{ 'true' if s.on else 'false' }}" aria-label="{{ _(s.name) }}"><span></span></button>

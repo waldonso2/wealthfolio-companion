@@ -10,15 +10,16 @@ import time
 from collections.abc import Callable
 from dataclasses import asdict
 from datetime import datetime
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
-from ... import __version__, container, crypto, meta_keys, redact, retired, updates
+from ... import __version__, container, crypto, meta_keys, redact, retired, swap, updates
 from ... import config as config_mod
 from ...history import COMPLETION_KINDS
 from ...sync import AlreadyRunning, is_running
+from ...wealthfolio import WealthfolioError
 from .. import inputs, views
 from ..context import AppContext, Ctx, language, redirect, tr
 from ..i18n import N_, translate
@@ -210,9 +211,29 @@ def settings_page(request: Request, ctx: Ctx):
 
 @router.get("/unknown", response_class=HTMLResponse)
 def unknown_page(request: Request, ctx: Ctx):
-    return ctx.render(request, "unknown.html", events=ctx.state.unknown_events(),
+    events = ctx.state.unknown_events()
+    return ctx.render(request, "unknown.html", events=events,
                       completions={f"{b}:{t}": c for (b, t), c in ctx.state.completions().items()},
-                      kinds=COMPLETION_KINDS)
+                      kinds=COMPLETION_KINDS, held=_held_positions(ctx, events))
+
+
+def _held_positions(ctx: AppContext, events: list[dict]) -> dict[str, list[tuple[str, str]]]:
+    """For each broker with an exchange proposal: what its securities account holds, to pick the old position
+    from. Empty when Wealthfolio does not answer (the page then offers a field to type the symbol)."""
+    brokers = {e["broker"] for e in events if (e["payload"] or {}).get("proposal")}
+    if not brokers:
+        return {}
+    c, out = ctx.cfg(), {}
+    for key in brokers:
+        b = c.brokers.get(key)
+        if b is None or not b.portfolio_account_id:
+            continue
+        try:
+            with ctx.wf_client(c) as wf:
+                out[key] = swap.positions(wf, b.portfolio_account_id)
+        except WealthfolioError:
+            continue
+    return out
 
 
 # What each kind needs besides the ISIN (#132).
@@ -231,6 +252,13 @@ async def unknown_complete(request: Request, ctx: Ctx):
     if form.get("action") == "delete":
         ctx.state.delete_completion(broker, tx_id)
         return redirect(request, "/unknown", tr(request, "Zurückgenommen."))
+    if form.get("action") == "ignore":  # never booked, never listed again (as *Ignorieren* on Prüfung)
+        ctx.state.delete_completion(broker, tx_id)
+        ctx.state.ignore(broker, [tx_id])
+        ctx.state.resolve_unknown(broker, tx_id)
+        ctx.event(request, "unknown_ignore", broker=broker, detail=event["raw_type"])
+        return redirect(request, "/unknown",
+                        tr(request, "Ignoriert - die Buchung wird nicht mehr angezeigt und nie gebucht."))
     kind = str(form.get("kind", ""))
     try:
         if kind not in _NEEDS:
@@ -245,12 +273,53 @@ async def unknown_complete(request: Request, ctx: Ctx):
                 data[field] = str(inputs.decimal(raw, label, minimum=Decimal(0)))
             elif field in _NEEDS[kind]:
                 raise inputs.Invalid("{label}: bitte angeben.", label=label)
-        if any(Decimal(data[f]) <= 0 for f in _NEEDS[kind]):
-            raise inputs.Invalid(N_("Stückzahl, Betrag und Verhältnis müssen größer 0 sein."))
+        # An amount of 0 is fine (free shares, a sale at 0); shares and the ratio must be positive.
+        if any(Decimal(data[f]) <= 0 for f in _NEEDS[kind] if f != "amount"):
+            raise inputs.Invalid(N_("Stückzahl und Verhältnis müssen größer 0 sein."))
     except inputs.Invalid as e:
         return redirect(request, "/unknown", e.text(language(request)), "error")
     ctx.state.add_completion(broker, tx_id, data)
     return redirect(request, "/unknown", tr(request, "Gespeichert - der nächste Abruf bucht es."))
+
+
+@router.post("/unknown/swap")
+async def unknown_swap(request: Request, ctx: Ctx):
+    """Confirm the proposed exchange of two ISINs (Trade Republic's reverse split into a new instrument): the
+    cost basis comes from Wealthfolio's position, both legs are stored as completions and booked by the next run."""
+    form = await request.form()
+    broker, tx_id = str(form.get("broker", "")), str(form.get("tx_id", ""))
+    events = {e["tx_id"]: e for e in ctx.state.unknown_events(broker)} if broker else {}
+    proposal = (events.get(tx_id) or {}).get("payload", {}).get("proposal")
+    legs = [events.get(proposal[s]["tx_id"]) for s in ("out", "in")] if proposal else [None]
+    if not proposal or None in legs:
+        return redirect(request, "/unknown", tr(request, "Diese Buchung ist nicht mehr offen."), "error")
+    c = ctx.cfg()
+    b = c.brokers.get(broker)
+    try:
+        if b is None or not b.portfolio_account_id:
+            raise swap.SwapError("account")
+        out, new = proposal["out"], proposal["in"]
+        shares = Decimal(out["shares"])
+        with ctx.wf_client(c) as wf:
+            known = ctx.state.assets(broker).get(out["isin"]) or {}
+            ids = swap.asset_ids(wf, known, out["isin"])
+            typed = inputs.symbol(str(form["symbol"])) if str(form.get("symbol") or "").strip() else ""
+            amount, currency = swap.cost_basis(wf, b.portfolio_account_id, ids, out["isin"], out["name"], shares,
+                                               typed)
+    except (swap.SwapError, WealthfolioError, InvalidOperation, inputs.Invalid) as e:
+        if isinstance(e, inputs.Invalid):
+            return redirect(request, "/unknown", e.text(language(request)), "error")
+        why = {"held": N_("Wealthfolio hält von der alten Position weniger Stücke als entfernt wurden."),
+               "basis": N_("Wealthfolio kennt für die alte Position keinen Einstandswert."),
+               "position": N_("Die alte Position ist in Wealthfolio nicht zu finden."),
+               "account": N_("Das Depotkonto des Brokers ist nicht eingestellt.")}.get(str(e))
+        shown = tr(request, why) if why else str(e)
+        return redirect(request, "/unknown", f"{shown} {getattr(e, 'detail', '')}".strip(), "error")
+    for kind, n in (("swap_out", out), ("swap_in", new)):
+        ctx.state.add_completion(broker, n["tx_id"], {
+            "kind": kind, "isin": n["isin"], "day": events[n["tx_id"]]["occurred_at"], "currency": currency,
+            "name": n["name"][:200], "shares": n["shares"], "amount": str(amount)})
+    return redirect(request, "/unknown", tr(request, "Gespeichert - der nächste Abruf bucht den Tausch."))
 
 
 def _wf_done(secrets_: dict) -> bool:

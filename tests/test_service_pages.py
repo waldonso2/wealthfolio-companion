@@ -40,6 +40,7 @@ def test_every_service_page_shows_head_status_settings_and_actions_in_that_order
         assert f'action="/services/{key}"' in page and 'role="switch"' in page, key
         head, status, actions = (page.index('name="back"'), page.index(">Status</h2>"), page.index(">Aktionen</h2>"))
         assert head < status < actions, key
+        assert 'href="/">← Dienste</a>' in page and page.index("← Dienste") < head, key  # the way back
         nav = page.split('<nav class="main"')[1]
         assert 'aria-current="page"' in nav.split('href="/"')[1][:30]  # under Dienste in the header
     page = client.get("/services/sync").text
@@ -48,7 +49,7 @@ def test_every_service_page_shows_head_status_settings_and_actions_in_that_order
     assert "Automatisch" in page
 
 
-def test_jetzt_ausfuehren_runs_the_step_in_the_background_only_when_on(tmp_path):
+def test_run_now_runs_the_step_in_the_background_only_when_on(tmp_path):
     wf = FakeWealthfolio()
     client, token, wf = _client(tmp_path, wf)
     State(tmp_path).set_fund(FUND, "World", LINES)
@@ -111,7 +112,8 @@ def test_xray_addon_is_stored_now_and_removed_again(tmp_path):
     r = client.post("/services/xray/run", data={"csrf": token})
     assert "Fondslisten abgelegt" in r.text and (xray_addon.ADDON_ID, xray_addon.INDEX) in wf.storage
     page = client.get("/services/xray").text
-    assert "Zuletzt abgelegt" in page and "Fonds mit Liste: 1" in page
+    assert "Zuletzt abgelegt" in page and "Fonds mit Liste: 1" in page and "Fonds ohne Liste: 0" in page
+    assert "Mittlere Abdeckung der Listen: 90.0 %" in page and "Abgelegte Teile: 1 (" in page and "World" not in page
     wf.storage[("other-addon", "x")] = "kept"
     r = client.post("/services/xray/remove", data={"csrf": token, "confirm": "1"})
     assert "Fondslisten aus Wealthfolio entfernt" in r.text
@@ -128,7 +130,7 @@ def test_an_old_wealthfolio_is_named_on_the_xray_page(tmp_path):
     assert "Wealthfolio zu alt" in client.get("/services/xray").text
 
 
-def test_positions_without_asset_class_are_shown_on_pruefung_and_the_services_page(tmp_path):
+def test_positions_without_asset_class_are_shown_on_check_and_the_services_page(tmp_path):
     """wealthfolio-importer-addon#141 stage 1: what Wealthfolio counts as "Unknown", with what to do."""
     import json
 
@@ -141,3 +143,15 @@ def test_positions_without_asset_class_are_shown_on_pruefung_and_the_services_pa
     page = client.get("/services/taxonomies").text
     assert "Anlageklasse aus dem Fondsnamen" in page and "Example Govt Bond ETF" in page
     assert 'href="/check#asset-classes"' in page
+
+
+def test_the_asset_class_lookup_is_off_until_switched_on_on_the_taxonomies_page(tmp_path):
+    client, token, _ = _client(tmp_path)
+    page = client.get("/services/taxonomies").text
+    assert 'name="lookup"' in page and "checked" not in page.split('name="lookup"')[1].split(">")[0]
+    assert not config_mod.load(tmp_path).asset_class_lookup
+    r = client.post("/services/taxonomies/settings", data={"csrf": token, "lookup": "1"}, follow_redirects=False)
+    assert r.status_code == 303 and config_mod.load(tmp_path).asset_class_lookup
+    assert "checked" in client.get("/services/taxonomies").text.split('name="lookup"')[1].split(">")[0]
+    client.post("/services/taxonomies/settings", data={"csrf": token}, follow_redirects=False)
+    assert not config_mod.load(tmp_path).asset_class_lookup

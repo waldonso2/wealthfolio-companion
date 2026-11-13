@@ -1,6 +1,7 @@
 {% extends "base.html" %}{% block title %}{{ _(service) }}{% endblock %}
 {# One page per service (#151): head with the switch, status, settings, actions - in this order. #}
 {% block content %}
+<p><a href="/">{{ _("← Dienste") }}</a></p>
 <div class="card service">
   <div class="grow">
     <h1>{{ _(service) }}</h1>

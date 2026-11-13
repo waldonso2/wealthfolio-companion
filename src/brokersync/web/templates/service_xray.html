@@ -8,14 +8,14 @@
 {% if depot_error %}<p class="error" role="alert">{{ _("Wealthfolio nicht erreichbar: {error}", error=depot_error | redact) }}</p>
 {% elif not read %}<p class="muted">{{ _("Die Positionen werden gerade aus Wealthfolio gelesen.") }}</p>
 {% else %}
-<p>{{ _("Fonds mit Liste: {n}", n=funds | length) }}{% if funds %} – {{ funds | join(", ") }}{% endif %}</p>
-{% if missing %}
-<div class="table"><table>
-  <caption class="sr-only">{{ _("Fonds ohne Liste") }}</caption>
-  <thead><tr><th scope="col">{{ _("Fonds") }}</th><th scope="col">{{ _("Grund") }}</th></tr></thead>
-  <tbody>{% for m in missing %}<tr><td data-label="{{ _('Fonds') }}">{{ m.name }}</td><td data-label="{{ _('Grund') }}">{{ m.reason | redact }}</td></tr>{% endfor %}</tbody>
-</table></div>
-{% endif %}
+<ul>
+  <li>{{ _("Fonds: {n}", n=n_funds) }}</li>
+  <li>{{ _("Fonds mit Liste: {n}", n=n_with) }}</li>
+  <li>{{ _("Fonds ohne Liste: {n}", n=n_funds - n_with) }}</li>
+  {% for reason, n in why %}<li class="muted">{{ _("{n} × {reason}", n=n, reason=reason | redact) }}</li>{% endfor %}
+  {% if coverage is not none %}<li>{{ _("Mittlere Abdeckung der Listen: {pct} %", pct=coverage | round(1)) }}</li>{% endif %}
+  <li>{{ _("Abgelegte Teile: {n} ({kb} KB)", n=n_parts, kb=(n_bytes / 1000) | round(1)) }}</li>
+</ul>
 {% endif %}
 {% endblock %}
 {% block settings %}

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import re
+from urllib.parse import quote
 
 from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse, Response
@@ -66,6 +67,18 @@ def setup_password_page(request: Request, ctx: Ctx):
     if ctx.vault.load().get("ui_password_hash"):
         return RedirectResponse("/login", 303)
     return ctx.render(request, "setup_password.html", code=request.query_params.get("code", "")[:64])
+
+
+@router.post("/setup-language")
+def setup_language(request: Request, ctx: Ctx, language: str = Form(...), code: str = Form("")):
+    """The language switch of the first page: only while no password is set (the page is open to anyone then)."""
+    if ctx.vault.load().get("ui_password_hash"):
+        return RedirectResponse("/login", 303)
+    if language in ("de", "en"):
+        ctx.update(lambda c: setattr(c, "ui_language", language))
+    # The setup code typed so far goes along, so switching the language never loses it.
+    target = "/setup-password" + (f"?code={quote(code[:64], safe='')}" if code.strip() else "")
+    return RedirectResponse(target, 303)
 
 
 @router.post("/setup-password")
