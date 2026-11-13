@@ -278,9 +278,13 @@ class WealthfolioClient:
         body = r.json()
         return body if isinstance(body, dict) else None
 
-    def set_spending_accounts(self, account_ids: list[str]) -> None:
-        """Tracks exactly these accounts and turns the tracker on; Wealthfolio categorizes new ones itself."""
-        r = self._request("PUT", "/spending/settings", json={"enabled": True, "accountIds": account_ids})
+    def set_spending_accounts(self, account_ids: list[str], enable: bool = True) -> None:
+        """Tracks exactly these accounts; ``enable`` also turns the tracker on (else its switch is left as the user
+        has it). Wealthfolio categorizes new ones itself."""
+        body: dict = {"accountIds": account_ids}
+        if enable:
+            body["enabled"] = True
+        r = self._request("PUT", "/spending/settings", json=body)
         _raise(r)
 
     def _storage(self, method: str, addon_id: str, key: str, **kw) -> httpx.Response:
