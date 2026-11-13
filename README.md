@@ -493,7 +493,7 @@ Everything else—reconciliation, X-Ray and costs, the booking model, proxy, log
 
 ## How it came about
 
-This project is built together with Claude (Anthropic's AI assistant): code, tests, reviews and releases.
+This project was built entirely on a phone, in conversation with Claude: code, tests, reviews and releases.
 
 ## Thanks
 

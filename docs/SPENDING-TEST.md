@@ -34,3 +34,8 @@ switching off removes only what the service added. Use your own accounts; write 
 - Account missing: is the cash account set on the broker and chosen on `/services/spending`? Is the service on?
 - Tracker stays off: look for "spending tracker not updated" in the log (old Wealthfolio or a rejected request).
 - The sync's result for comdirect never depends on this step; a failure here only shows in the log.
+
+## Good to know
+
+- While the *Spending tracker* service is on and a broker's cash account is selected, every run makes sure Wealthfolio's tracker is switched on. If you switch the tracker off in Wealthfolio on purpose, switch the service off here too, otherwise the next run switches it on again.
+- Switching the service off removes only the accounts this service added and never touches the tracker's own switch.
