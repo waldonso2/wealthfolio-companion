@@ -85,6 +85,7 @@ EN: dict[str, str] = {
     # Page Dienste (#145)
     "Die Anmeldung läuft gerade schon - bitte kurz warten.": "The login is already in progress - please wait a moment.",
     "Dienste": "Services",
+    "← Dienste": "← Services",
     "Was der Service in dein Wealthfolio schreibt. Jeder Dienst lässt sich einzeln ein- und ausschalten.":
         "What the service writes into your Wealthfolio. Each service can be switched on and off on its own.",
     "schaltet sich ein, sobald die Einstellungen gespeichert sind": "switches on once the settings are saved",
