@@ -479,7 +479,7 @@ The UI starts in German; select *Einstellungen → Darstellung* to switch it to 
 | What's inside my ETFs? | Page *X-Ray*, or in Wealthfolio with the X-Ray addon |
 | Forgot the password | LXC console: `companion-reset-password`; Docker: `docker exec -it companion wealthfolio-companion reset-ui-password` |
 
-Everything else—reconciliation, X-Ray, costs and FIRE, the booking model, proxy, logs, and metrics—is covered in [Features in Detail](docs/FEATURES.md). Updates, security, backups, and technical details are covered in [Operations](docs/OPERATIONS.md).
+Everything else—reconciliation, X-Ray and costs, the booking model, proxy, logs, and metrics—is covered in [Features in Detail](docs/FEATURES.md). Updates, security, backups, and technical details are covered in [Operations](docs/OPERATIONS.md).
 
 ## Security in brief
 

@@ -62,7 +62,7 @@ Important modules include:
 | reconcile.py / coverage.py | Compares broker history and Wealthfolio activities |
 | notify.py | Sends notifications through ntfy |
 | lookthrough.py / xray.py | ETF holdings, exposure, overlap, and concentration analysis |
-| costs.py / fire.py | Investment-cost estimates and the FIRE calculator |
+| costs.py | Investment-cost estimates |
 | web/routes/ | UI endpoints, grouped by functional area |
 
 ## Sync lifecycle

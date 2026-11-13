@@ -12,7 +12,7 @@ After every sync, the service compares broker data with Wealthfolio: cash balanc
 
 The **Review** page also shows imported bookings that have disappeared from Wealthfolio (*Re-create* or *Ignore*), transactions the broker no longer reports, residual cash in securities accounts, and transfers without a matching entry.
 
-## X-Ray, concentration risks, and FIRE
+## X-Ray and concentration risks
 
 The **X-Ray** page in the main menu shows the stocks held inside your ETFs and how they combine with your directly held stocks, across all Wealthfolio accounts:
 
@@ -32,8 +32,6 @@ Optionally, the service can also write ETF **countries and sectors into Wealthfo
 The same service can also fill in a missing **asset class**. Wealthfolio's target allocation counts a position without one as “Unknown”. A fund whose name says it is a bond fund or a physical precious-metal ETC gets that class (as Wealthfolio itself would assign it). With *Ask ESMA's register for the asset class* on the service page, a position that is still without a class is looked up by its ISIN in the public FIRDS register of the European securities regulator (only the ISIN is sent to `registers.esma.europa.eu`): shares become Equity, bonds Fixed income, and funds by their principal investment type (equities, bonds, commodities, real estate). Mixed funds, derivatives, structured products and anything the register does not know stay without a class. The class is written with 100 % as an automatic value, so Wealthfolio replaces it once a quote provider supplies the real breakdown; an asset class you set yourself is never touched. What the register listed is kept, so an ISIN is asked once (one it does not list again after 30 days).
 
 **X-Ray inside Wealthfolio:** The *X-Ray in Wealthfolio* service (on *Services*) stores the holdings lists in Wealthfolio after each sync for the X-Ray add-on. The add-on displays X-Ray directly inside Wealthfolio and makes no network requests itself. Only provider holdings lists and fund names/ISINs are stored—no amounts. Wealthfolio 3.11 or newer is required. The service page shows when data was last stored, which funds have lists and why others do not, links to the add-on (install in Wealthfolio via *Settings → Add-ons → Install from file*), and provides *Store now* and *Remove from Wealthfolio*.
-
-The **FIRE calculator** (link at the bottom of X-Ray) estimates the portfolio needed to fund a lifestyle in today's money under German rules: capital gains tax plus solidarity surcharge and optional church tax, applied only to the gain portion of a sale; 30% partial tax exemption for equity funds; saver allowance; health and long-term care insurance as a voluntarily insured member of statutory insurance (or a private premium; minimum contribution only in years without pension or part-time income, and no contribution once compulsory pensioner insurance applies); and statutory pension from its start date. It shows Lean, Regular and Fat FIRE (75%, 100%, 150% of spending), Barista FIRE with part-time income until pension age, when the target is reached, and the portfolio level at which Coast FIRE applies. Assets and gain share come from Wealthfolio; costs come from X-Ray and are deducted from returns, with a comparison showing results without costs. All values can be overridden. This is a simplified model using 2026 values, not tax or investment advice.
 
 ## Booking model
 
