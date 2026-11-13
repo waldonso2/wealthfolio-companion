@@ -111,7 +111,8 @@ def test_xray_addon_is_stored_now_and_removed_again(tmp_path):
     r = client.post("/services/xray/run", data={"csrf": token})
     assert "Fondslisten abgelegt" in r.text and (xray_addon.ADDON_ID, xray_addon.INDEX) in wf.storage
     page = client.get("/services/xray").text
-    assert "Zuletzt abgelegt" in page and "Fonds mit Liste: 1" in page
+    assert "Zuletzt abgelegt" in page and "Fonds mit Liste: 1" in page and "Fonds ohne Liste: 0" in page
+    assert "Mittlere Abdeckung der Listen: 90.0 %" in page and "Abgelegte Teile: 1 (" in page and "World" not in page
     wf.storage[("other-addon", "x")] = "kept"
     r = client.post("/services/xray/remove", data={"csrf": token, "confirm": "1"})
     assert "Fondslisten aus Wealthfolio entfernt" in r.text

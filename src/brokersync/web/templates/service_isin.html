@@ -1,6 +1,7 @@
 {% extends "_service.html" %}
 {% block status %}
 {% if done %}
+<details class="panel"><summary>{{ _("Ergänzte ISINs ({n})", n=done | length) }}</summary>
 <div class="table"><table>
   <caption class="sr-only">{{ _("Ergänzte ISINs") }}</caption>
   <thead><tr><th scope="col">{{ _("Wertpapier") }}</th><th scope="col">{{ _("ISIN") }}</th><th scope="col">{{ _("Ergänzt") }}</th></tr></thead>
@@ -11,12 +12,14 @@
   {% endfor %}
   </tbody>
 </table></div>
+</details>
 {% else %}<p class="muted">{{ _("Noch keine ISIN ergänzt.") }}</p>{% endif %}
 <h3>{{ _("Ohne ISIN") }}</h3>
 {% if depot_error %}<p class="error" role="alert">{{ _("Wealthfolio nicht erreichbar: {error}", error=depot_error | redact) }}</p>
 {% elif not read %}<p class="muted">{{ _("Die Positionen werden gerade aus Wealthfolio gelesen.") }}</p>
 {% elif without %}<p>{{ _("Für diese Wertpapiere kennt der Dienst noch keine ISIN:") }}</p>
-<ul>{% for p in without %}<li>{{ p.name }}</li>{% endfor %}</ul>
+<details class="panel"><summary>{{ _("Ohne ISIN ({n})", n=without | length) }}</summary>
+<ul>{% for p in without %}<li>{{ p.name }}</li>{% endfor %}</ul></details>
 {% else %}<p class="muted">{{ _("Jedes Wertpapier im Depot hat eine ISIN.") }}</p>{% endif %}
 {% endblock %}
 {% block settings %}

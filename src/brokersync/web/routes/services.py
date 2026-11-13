@@ -10,7 +10,9 @@ from __future__ import annotations
 
 import json
 import re
+from collections import Counter
 from collections.abc import Callable
+from decimal import Decimal
 
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse
@@ -155,9 +157,14 @@ def _xray(request: Request, ctx: AppContext, c: config_mod.Config) -> dict:
 
     read_soon(request, ctx)
     built = xray_addon.build(ctx.state, ctx.depot, ctx.syncer.learned_isins(c), 0)
+    funds = built.index["funds"].values()
+    why = Counter(re.sub(r"\b[A-Z]{2}[A-Z0-9]{9}\d\b", "…", m["reason"]) for m in built.index["missing"])
+    coverage = sum((Decimal(f["coverage"]) for f in funds), Decimal(0)) * 100 / len(funds) if funds else None
     return {"status": json.loads(ctx.state.meta(meta_keys.XRAY_ADDON_STATUS()) or "null"),
             "stale": len(json.loads(ctx.state.meta(meta_keys.XRAY_ADDON_STALE()) or "[]")),
-            "funds": sorted(f["name"] for f in built.index["funds"].values()), "missing": built.index["missing"],
+            "n_funds": len(funds) + len(built.index["missing"]), "n_with": len(funds),
+            "why": why.most_common(), "coverage": coverage,
+            "n_parts": len(built.parts), "n_bytes": sum(len(v) for v in built.parts.values()),
             "read": bool(ctx.depot_at), "depot_error": ctx.depot_error}
 
 
