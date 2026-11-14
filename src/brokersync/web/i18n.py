@@ -418,6 +418,29 @@ EN: dict[str, str] = {
         ("{old} ({n_old} shares) out, {new} ({n_new} shares) in. The old position's cost basis comes from "
          "Wealthfolio and moves to the new one – no gain, no loss. Nothing is booked until you click."),
     "Tausch buchen": "Book the exchange",
+    ("Zum Umschalten bitte bestätigen, dass die Buchungen dieses Brokers gelöscht und neu gebucht werden."):
+        "To switch, please confirm that this broker's bookings are deleted and booked again.",
+    "Erst die beiden Wealthfolio-Konten des Brokers wählen.": "First choose the broker's two Wealthfolio accounts.",
+    ("{deleted} Buchungen gelöscht, {failed} nicht: {errors} - nichts umgeschaltet, bitte noch einmal "
+     "versuchen."):
+        "{deleted} bookings deleted, {failed} not: {errors} - nothing switched, please try again.",
+    ("Umgeschaltet: {deleted} Buchungen gelöscht. Jetzt den Broker abrufen - er bucht alles neu "
+     "(bei comdirect mit Anmeldung per TAN)."):
+        "Switched: {deleted} bookings deleted. Now fetch the broker - it books everything again "
+        "(comdirect asks for a TAN).",
+    "bucht das Girokonto nur mit Tracker": "books the giro account only with the tracker",
+    "Passwort dieser Oberfläche (nur beim Umschalten)": "Password of this interface (only when switching)",
+    "Beim Umschalten die Buchungen dieses Brokers löschen und neu buchen":
+        "When switching, delete this broker's bookings and book them again",
+    ("Bei Brokern mit dem Hinweis „bucht das Girokonto nur mit Tracker“ (comdirect) ändert das Umscha"
+     "lten die Buchungsweise: Der Dienst löscht seine bisherigen Buchungen dieses Brokers und bucht b"
+     "eim nächsten Abruf neu - mit Tracker das ganze Girokonto, ohne Tracker wieder nur das Depot. Ei"
+     "gene Importe und Handbuchungen bleiben."):
+        (
+        "For brokers with the note “books the giro account only with the tracker” (comdirect), switching changes how "
+        "it is booked: the service deletes its earlier bookings of this broker and books again at the next fetch - "
+        "the whole giro account with the tracker, only the depot without it. Your own imports and manual entries "
+        "stay."),
     "Bank hinzufügen": "Add a bank",
     ("Für eine Bank, die nicht oben steht: mit FinTS (die meisten deutschen Banken) oder über PSD2 "
      "(Enable Banking)."):

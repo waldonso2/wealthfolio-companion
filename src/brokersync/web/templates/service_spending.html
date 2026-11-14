@@ -12,9 +12,16 @@
   <form method="post" action="/services/spending/settings">
     <input type="hidden" name="csrf" value="{{ csrf }}">
     <fieldset{{ invalid("broker") }}><legend>{{ _("Verrechnungskonten im Ausgaben-Tracker") }}</legend>
-    {% for r in rows %}<label class="check"><input type="checkbox" name="broker" value="{{ r.key }}"{% if r.on %} checked{% endif %}> {{ _("{broker}: {account}", broker=r.label, account=r.account) }}</label>{% endfor %}
+    {% for r in rows %}<label class="check"><input type="checkbox" name="broker" value="{{ r.key }}"{% if r.on %} checked{% endif %}> {{ _("{broker}: {account}", broker=r.label, account=r.account) }}{% if r.rebook %} <span class="muted">({{ _("bucht das Girokonto nur mit Tracker") }})</span>{% endif %}</label>{% endfor %}
     </fieldset>
     {{ error("broker") }}
+    {% if rows | selectattr("rebook") | list %}
+    <p class="muted">{{ _("Bei Brokern mit dem Hinweis „bucht das Girokonto nur mit Tracker“ (comdirect) ändert das Umschalten die Buchungsweise: Der Dienst löscht seine bisherigen Buchungen dieses Brokers und bucht beim nächsten Abruf neu - mit Tracker das ganze Girokonto, ohne Tracker wieder nur das Depot. Eigene Importe und Handbuchungen bleiben.") }}</p>
+    <label class="check"><input type="checkbox" name="rebook" value="1"> {{ _("Beim Umschalten die Buchungen dieses Brokers löschen und neu buchen") }}</label>
+    <label for="ui_password">{{ _("Passwort dieser Oberfläche (nur beim Umschalten)") }}</label>
+    <input type="password" id="ui_password" name="ui_password" autocomplete="current-password"{{ invalid("ui_password") }}>
+    {{ error("ui_password") }}
+    {% endif %}
     <div class="actions"><button>{{ _("Speichern") }}</button></div>
   </form>
   {% else %}<p class="muted">{{ _("Noch kein Broker mit Verrechnungskonto.") }} <a href="/brokers">{{ _("Broker einrichten") }}</a></p>{% endif %}

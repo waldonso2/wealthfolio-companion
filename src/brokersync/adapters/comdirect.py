@@ -22,6 +22,13 @@ The user enables the API in the comdirect online banking (persönlicher Bereich
   Wealthfolio receives the dividends (swept from the depot) and nothing else:
   a buy is preceded by a deposit of its cost, a sale followed by a withdrawal
   of its proceeds (``Transaction.external_cash``). No balance is compared.
+- **Unless the spending tracker is on** (``full_giro``, set from ``BrokerConfig.spending``): then the whole giro
+  account is booked, so Wealthfolio's tracker sees card payments, direct debits and transfers. Settlements of
+  trades become real transfers giro → depot (no ``external_cash``), every other booking a deposit, withdrawal,
+  fee or interest on the cash account, and one opening balance (``giro-opening``: the account balance minus all
+  booked movements, once, in the first run after a reset) keeps the cash account at the real balance.
+  Switching the mode starts the broker over (``reset.py``), because the two models book the same trade
+  differently.
 - **Trades:** the depot transactions carry share count, price and market
   value, but neither fees nor taxes. Each buy/sell is paired with the giro
   booking that settled it (``Wertpapier``, ±``SETTLEMENT_DAYS``): its amount
@@ -147,6 +154,19 @@ def _is_securities(t: dict) -> bool:
     return "wertpapier" in _type(t) or "securities" in _type(t)
 
 
+FEE_TEXT = re.compile(r"entgelt|geb(?:ü|ue|u)hr|kontof(?:ü|ue|u)hrung", re.IGNORECASE)
+OPENING_ID = "giro-opening"
+
+
+def _party(b: dict, outgoing: bool) -> tuple[str, str]:
+    """(name, IBAN) of the other side of a giro booking: the creditor of a payment, the remitter of a receipt."""
+    for key in (("creditor", "deptor") if outgoing else ("remitter", "deptor")):
+        p = b.get(key)
+        if isinstance(p, dict) and (p.get("holderName") or p.get("iban")):
+            return str(p.get("holderName") or ""), str(p.get("iban") or "").replace(" ", "").upper()
+    return "", ""
+
+
 def _is_income(t: dict) -> bool:
     kind = _type(t)
     return "zinsen" in kind or "dividend" in kind or "interest" in kind
@@ -162,11 +182,14 @@ def _unknown(tx_id: str, when: datetime, raw_type: str, payload: dict, currency:
 
 
 def to_transactions(bookings: list[dict], depot_transactions: list[dict], wkn_to_isin: dict[str, str],
-                    today: date | None = None, names: dict[str, str] | None = None) -> list[Transaction]:
+                    today: date | None = None, names: dict[str, str] | None = None, *,
+                    full_giro: bool = False, opening_balance: Decimal | None = None) -> list[Transaction]:
     """Giro bookings and depot transactions (booked only) → transactions, oldest first.
 
     ``wkn_to_isin`` and ``names`` (ISIN → name) come from the depot positions and
     transactions: dividends name their security by ISIN or WKN in the posting text.
+    ``full_giro``: the whole giro account is booked (see the module docstring); ``opening_balance``: the account
+    balance, from which the opening deposit is derived (only then, only once).
     """
     names = names or {}
     today = today or datetime.now(BERLIN).date()
@@ -209,7 +232,7 @@ def to_transactions(bookings: list[dict], depot_transactions: list[dict], wkn_to
         out.append(Transaction(
             id=tx_id, kind=Kind.BUY if buy else Kind.SELL, datetime=_noon(business), currency=_unit(cash.get("amount")),
             net=net, isin=isin or None, name=name, shares=abs(shares) if shares is not None else None,
-            gross=gross, fee=costs, label="Kauf" if buy else "Verkauf", external_cash=True))
+            gross=gross, fee=costs, label="Kauf" if buy else "Verkauf", external_cash=not full_giro))
 
     # Giro bookings: only dividends are booked (the giro account itself isn't); a payout whose
     # security can't be told is reported.
@@ -236,7 +259,46 @@ def to_transactions(bookings: list[dict], depot_transactions: list[dict], wkn_to
         else:
             out.append(_unknown(_account_id(b), when, "DIVIDENDE_OHNE_WERTPAPIER",
                                 {"betrag": f"{value} {currency}", "buchungstext": text[:140]}, currency))
+    if full_giro:
+        out += _giro_movements(bookings, used, today, opening_balance)
     return sorted(out, key=lambda t: (t.datetime, t.id))
+
+
+def _giro_movements(bookings: list[dict], used: set[str], today: date, opening_balance: Decimal | None
+                    ) -> list[Transaction]:
+    """The giro bookings the depot side did not take (``full_giro``): deposits, withdrawals, fees, interest, and
+    the opening deposit that brings the cash account to the real balance."""
+    out: list[Transaction] = []
+    counted = Decimal(0)  # everything that moved the real balance in the window, booked here or not
+    first: date | None = None
+    for b in bookings:
+        value = _dec(b.get("amount")) or Decimal(0)
+        day = _day(b.get("bookingDate")) or _day(b.get("valutaDate")) or today
+        counted += value
+        first = day if first is None or day < first else first
+        if b["reference"] in used or value == 0:
+            continue
+        text = _text(b)
+        if _is_income(b) and DIVIDEND.search(text):
+            continue  # a dividend: booked above (or reported)
+        if _is_securities(b) and (today - day).days <= UNSETTLED_DAYS:
+            continue  # its depot transaction may still come: booked as a transfer then, not twice
+        currency = _unit(b.get("amount"))
+        name, iban = _party(b, value < 0)
+        kind_text = b.get("transactionType")
+        label = str(kind_text.get("text") or "") if isinstance(kind_text, dict) else ""
+        if value > 0:
+            kind = Kind.INTEREST if _is_income(b) and INTEREST.search(text) else Kind.DEPOSIT
+        else:
+            kind = Kind.FEE if FEE_TEXT.search(f"{label} {text}") and not name else Kind.WITHDRAWAL
+        out.append(Transaction(id=_account_id(b), kind=kind, datetime=_noon(day), currency=currency, net=abs(value),
+                               signed=value, label=label, counterparty=name, counterparty_iban=iban, text=text))
+    if opening_balance is not None and first is not None and opening_balance != counted:
+        gap = opening_balance - counted
+        out.append(Transaction(id=OPENING_ID, kind=Kind.DEPOSIT if gap > 0 else Kind.WITHDRAWAL,
+                               datetime=_noon(first) - timedelta(hours=1), currency="EUR", net=abs(gap), signed=gap,
+                               label="Anfangsbestand", text="Kontostand vor dem ersten gebuchten Umsatz"))
+    return out
 
 
 def _amount(text: str) -> Decimal:
@@ -327,6 +389,7 @@ def _security(text: str, wkn_to_isin: dict[str, str]) -> str | None:
 
 
 class ComdirectAdapter(BrokerAdapter):
+    giro_with_spending = True
     key = "comdirect"
     label = "comdirect"
     credential_fields: ClassVar[list[CredentialField]] = [
@@ -698,11 +761,19 @@ class ComdirectAdapter(BrokerAdapter):
                  len(depot_txs), min((str(d.get("businessDate") or d.get("bookingDate")) for d in depot_txs
                                       if d.get("businessDate") or d.get("bookingDate")), default="-"),
                  start or first_day)
-        txs = to_transactions(bookings, depot_txs, wkn_to_isin, today, names)
+        opening = None
+        if self.full_giro and not self.known_ids:  # the first run after a reset: derive the opening deposit
+            balance = _dec((self._giro() or {}).get("balance"))
+            opening = balance
+            # Only what the run books counts: from the day before the start date, like the filter below.
+            cut = start - timedelta(days=1) if start else None
+            bookings = [b for b in bookings if cut is None or (_day(b.get("bookingDate")) or cut) >= cut]
+        txs = to_transactions(bookings, depot_txs, wkn_to_isin, today, names, full_giro=self.full_giro,
+                              opening_balance=opening)
         if start is None:
             return txs
         first = _noon(start) - timedelta(hours=12)
-        return [t for t in txs if t.datetime >= first]
+        return [t for t in txs if t.datetime >= first or t.id == OPENING_ID]
 
 
 class RequestRejected(AdapterError):
