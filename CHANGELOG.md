@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.0b16
+
+- **N26 over the app's interface is removed.** N26 switched off the interface the service used (`/api/smrt/transactions` in October 2023, `/api/accounts` in January 2024, according to N26's own documentation for third parties), so every fetch ended in HTTP 503 - which the service reported as a rate limit. The adapter, its tests and its documentation are gone; on the next start an existing N26 setup is cleaned up like the old test broker (its settings, saved e-mail and password, session and sync state; the activities it booked stay in Wealthfolio, the overview shows once how many and how to find them: `[SYNC n26:`). The way to N26 is *Brokers → Add a bank → Bank via PSD2* (Enable Banking).
+
 ## 0.1.0b15
 
 Small corrections to the service and X-Ray pages, and "Fetch all" now says why it fetched nothing.

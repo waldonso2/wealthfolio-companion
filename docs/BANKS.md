@@ -110,16 +110,6 @@ Every EU bank must provide account data through an interface under the Payment S
 
 **Bookings:** As for DKB: expenses as withdrawals, incoming funds as deposits, interest and fees separately; pending transactions are only imported once booked. PSD2 covers payment accounts, **not securities portfolios**. Current-account transactions related to securities are held until the corresponding securities-side transaction exists in Wealthfolio.
 
-## N26
-
-> **Important:** N26 does not offer an official interface for retail customers. The service uses the interface used by the N26 app, as other finance tools do. N26 may change it or prohibit such access at any time, in which case syncing will stop. You must acknowledge this notice once in broker settings before login can start.
-
-**Configure** under *Broker → N26*: your N26 email address and password.
-
-**Login:** The service signs in and N26 sends a confirmation request to the N26 app. Approve it and click *I have confirmed in the app*. The service can then sync without you while N26 keeps the session valid. When it expires, ntfy reports *Login required*. A new request in the app only starts the UI flow; the scheduled sync never triggers one by itself. If N26 rejects the password or email, the service will not retry until you save the credentials again.
-
-**Bookings:** Incoming funds are deposits; card payments, direct debits and transfers are withdrawals. Pending transactions are imported only after booking. Moving money into an N26 Space appears as a withdrawal from the main account; a transfer rule on the *Transfers* page (e.g. a Space keyword) turns it into a transfer to a dedicated Wealthfolio account. The main-account balance is reconciled after each sync.
-
 ## Trade Republic
 
 The service reads your Trade Republic timeline through the app's unofficial interface, using the open-source project [pytr](https://github.com/pytr-org/pytr). Access is read-only; it cannot place orders or initiate withdrawals.

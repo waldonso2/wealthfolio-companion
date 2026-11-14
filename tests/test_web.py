@@ -482,3 +482,32 @@ def test_first_page_has_a_language_switch_and_service_pages_a_way_back(tmp_path)
     r = client.post("/setup-language", data={"csrf": csrf(client, "/"), "language": "de"}, follow_redirects=False)
     assert r.headers["location"] == "/login" and config_mod.load(tmp_path).ui_language == "en"
     assert 'href="/">← Services</a>' in client.get("/services/logos").text
+
+
+def test_an_installation_with_the_removed_n26_broker_is_cleaned_up(tmp_path):
+    from brokersync.state import State
+
+    # What 0.1.0b15 and earlier left behind: N26 over its app's interface (switched off by N26), next to a real broker.
+    cfg = config_mod.Config()
+    cfg.brokers["n26"] = config_mod.BrokerConfig(enabled=True, cash_account_id="acc-cash",
+                                                 portfolio_account_id="acc-depot")
+    cfg.brokers["fake"] = config_mod.BrokerConfig(enabled=True, cash_account_id="acc-cash",
+                                                  portfolio_account_id="acc-depot")
+    config_mod.save(tmp_path, cfg)
+    vault = Vault(tmp_path)
+    vault.set_broker_credentials("n26", {"username": "max@example.invalid", "password": "geheim-123"})
+    vault.set_broker_session("n26", {"access_token": "t", "device_token": "d"})
+    vault.set_broker_credentials("fake", {"username": "max"})
+    old = State(tmp_path)
+    old.mark("n26", "n26-1", "imported", ["a1", "a2"])
+    old.finish_run(old.start_run("n26"), "limited", created=0)
+    old.mark("fake", "f-1", "imported", ["b1"])
+
+    client, _, _ = make(tmp_path)
+    assert "n26" not in config_mod.load(tmp_path).brokers and "fake" in config_mod.load(tmp_path).brokers
+    assert vault.broker("n26") == {} and vault.broker("fake")["credentials"] == {"username": "max"}  # login data gone
+    state = State(tmp_path)
+    assert state.known("n26") == set() and state.runs("n26") == [] and state.known("fake") == {"f-1"}
+    first_password(client)
+    page = client.get("/broker").text
+    assert "N26 (App-Schnittstelle) entfernt" in page and "2 Buchungen" in page and "[SYNC n26:" in page

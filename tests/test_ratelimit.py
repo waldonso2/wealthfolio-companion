@@ -7,10 +7,10 @@ import httpx
 import pytest
 
 from brokersync import meta_keys, ratelimit
-from brokersync.adapters import ADAPTERS, n26
+from brokersync.adapters import ADAPTERS
 from brokersync.adapters import comdirect as cd
 from brokersync.adapters import enablebanking as eb
-from brokersync.adapters.base import AdapterError, AuthRequired, RateLimited, rate_limited
+from brokersync.adapters.base import AdapterError, rate_limited
 
 from .fake_broker import FakeBroker
 from .fakes import FakeWealthfolio
@@ -70,53 +70,14 @@ def test_other_errors_are_not_tried_again(_no_rate_limit_waits):
 
 
 def test_the_wait_named_to_the_user_follows_retry_after():
-    e = rate_limited("N26", answer(429, "7200"), now=NOW)
-    assert e.until == NOW + timedelta(hours=2) and "N26 begrenzt gerade die Abrufe (HTTP 429)" in str(e)
+    e = rate_limited("Testbank", answer(429, "7200"), now=NOW)
+    assert e.until == NOW + timedelta(hours=2) and "Testbank begrenzt gerade die Abrufe (HTTP 429)" in str(e)
     assert "30.10.2026 15:00" in str(e)  # German time
     assert rate_limited("TR", now=NOW).until == NOW + timedelta(seconds=ratelimit.NEXT_TRY)
     assert isinstance(e, AdapterError)
 
 
 # ── adapters ────────────────────────────────────────────────────────────────
-
-def test_n26_reads_through_a_short_limit_and_stops_cleanly_on_a_long_one(monkeypatch):
-    seen: list[str] = []
-    limited = {"n": 1}
-
-    def handle(request: httpx.Request) -> httpx.Response:
-        seen.append(request.url.path)
-        if limited["n"]:
-            limited["n"] -= 1
-            return httpx.Response(429)
-        return httpx.Response(200, json={"availableBalance": 1})
-
-    monkeypatch.setattr(n26.N26Adapter, "transport", httpx.MockTransport(handle))
-    a = n26.N26Adapter({}, {"access_token": "a", "expires_at": 9e12})
-    assert a._get("/api/accounts") == {"availableBalance": 1} and len(seen) == 2
-    limited["n"] = 99
-    with pytest.raises(RateLimited, match="N26 begrenzt gerade die Abrufe"):
-        a._get("/api/accounts")
-
-
-def test_n26_never_retries_a_token_request(monkeypatch, _no_rate_limit_waits):
-    calls: list[str] = []
-
-    def handle(request: httpx.Request) -> httpx.Response:
-        calls.append(dict(httpx.QueryParams(request.content.decode()))["grant_type"])
-        return httpx.Response(429)
-
-    monkeypatch.setattr(n26.N26Adapter, "transport", httpx.MockTransport(handle))
-    a = n26.N26Adapter({"username": "max@example.invalid", "password": "geheim"}, {"refresh_token": "r"})
-    a.on_user_action = lambda m: None
-    with pytest.raises(AuthRequired):  # a scheduled run: the login waits for the UI, nothing asked again
-        a.login()
-    assert calls == ["refresh_token"] and not _no_rate_limit_waits
-    a2 = n26.N26Adapter({"username": "max@example.invalid", "password": "geheim"})
-    with pytest.raises(AdapterError):
-        a2.login()
-    assert calls == ["refresh_token", "password"] and not _no_rate_limit_waits
-    assert not a2.session.get("pin_rejected")
-
 
 def test_comdirect_never_retries_the_password_grant(monkeypatch, _no_rate_limit_waits):
     calls: list[str] = []
