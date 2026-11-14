@@ -72,7 +72,7 @@ The `companion` units and the certificate's renewal have no capabilities, `NoNew
 
 **Network.** Inbound: TCP 8443 (the UI, HTTPS) and 8090 (only a redirect to 8443); the service listens on nothing else. The Debian template's own SSH server may answer on 22 (root logins by password only if you enabled SSH root access when creating the container); `ss -tlnp` in the container lists what listens. The UI answers only to the container's addresses and known names. Outbound, all HTTPS unless you configure otherwise:
 
-- the brokers and banks you set up (their APIs and FinTS servers, Enable Banking for PSD2 banks, Trade Republic through pytr, Scalable through `sc`), your Wealthfolio (its address and port), your ntfy server if set up;
+- the brokers and banks you set up (their APIs and FinTS servers, Trade Republic through pytr, Scalable through `sc`), your Wealthfolio (its address and port), your ntfy server if set up;
 - the ETF issuers' sites and Finanzfluss (the ISINs of your funds), logo.dev only when logos are on, ESMA's FIRDS register (`registers.esma.europa.eu`, ISINs) only when *Ask ESMA's register for the asset class* is on;
 - GitHub: the daily update check (`github.com`), the `sc` download, and for an update the release files (`github.com` and its download hosts), the attestation (`api.github.com`) and the locked Python packages (`pypi.org`, `files.pythonhosted.org`);
 - DNS.

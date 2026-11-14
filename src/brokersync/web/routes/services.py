@@ -230,8 +230,10 @@ async def spending_settings(request: Request, ctx: Ctx):
 
     # A broker that books its whole giro account only with the tracker (comdirect) books everything again after a
     # switch, because the two models book a trade differently: its activities are deleted first (reset.py).
+    # The ticked confirmation also books again a broker that is on already (set before the model existed).
+    again = form.get("rebook") == "1"
     switching = [k for k in sorted(listed) if ctx.adapters[k].giro_with_spending
-                 and (k in chosen) != c.brokers[k].spending]
+                 and ((k in chosen) != c.brokers[k].spending or (again and k in chosen))]
     if switching and (errors := _switch_errors(request, ctx, form, c, switching)):
         return render(request, ctx, "spending", errors=errors)
 

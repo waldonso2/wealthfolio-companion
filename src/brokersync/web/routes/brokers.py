@@ -58,42 +58,29 @@ def brokers_page(request: Request, ctx: Ctx):
 
 
 @router.get("/brokers/add", response_class=HTMLResponse)
-def broker_add_page(request: Request, ctx: Ctx, kind: str = "", q: str = ""):
-    """The dialog to add a bank over FinTS or PSD2: the kind, then (FinTS) a search in the banks' list."""
-    c = ctx.cfg()
-    if kind not in SLOT_KINDS:
-        return redirect(request, "/brokers", tr(request, "Bitte zuerst die Art der Anbindung wählen."), "error")
-    if free_slot(ctx, c, kind) is None:
+def broker_add_page(request: Request, ctx: Ctx, q: str = ""):
+    """The dialog to add a bank over FinTS: a search in the banks' list."""
+    if free_slot(ctx, ctx.cfg(), "fints") is None:
         return redirect(request, "/brokers", tr(request, "Alle Plätze dieser Art sind belegt."), "warn")
-    found = institutes.search(q) if kind == "fints" else []
-    return ctx.render(request, "broker_add.html", kind=kind, q=q.strip()[:60], found=found)
+    return ctx.render(request, "broker_add.html", q=q.strip()[:60], found=institutes.search(q))
 
 
 @router.post("/brokers/add")
-def broker_add(request: Request, ctx: Ctx, kind: str = Form(""), bank: str = Form(""), country: str = Form("")):
-    """Takes the next free slot, names it and keeps the bank code (FinTS) or the name (PSD2) for the setup page."""
-    c = ctx.cfg()
-    slot = free_slot(ctx, c, kind) if kind in SLOT_KINDS else None
+def broker_add(request: Request, ctx: Ctx, bank: str = Form("")):
+    """Takes the next free FinTS slot, names it and keeps the bank code for the setup page."""
+    slot = free_slot(ctx, ctx.cfg(), "fints")
     if slot is None:
         return redirect(request, "/brokers", tr(request, "Alle Plätze dieser Art sind belegt."), "warn")
     try:
-        if kind == "fints":
-            blz = inputs.blz(bank, N_("Bankleitzahl"))
-            known = institutes.lookup(blz)
-            if known is None:
-                raise inputs.Invalid(N_("Diese Bankleitzahl ist nicht in der Liste."))
-            name, creds = known[0], {"blz": blz}
-        else:
-            name = inputs.text(bank, N_("Bank"), max_len=80)
-            if not name:
-                raise inputs.Invalid("{label}: bitte angeben.", label=N_("Bank"))
-            creds = {"bank": name}
-            if country.strip():
-                creds["country"] = inputs.text(country, N_("Land"), max_len=2).upper()
+        blz = inputs.blz(bank, N_("Bankleitzahl"))
+        known = institutes.lookup(blz)
+        if known is None:
+            raise inputs.Invalid(N_("Diese Bankleitzahl ist nicht in der Liste."))
     except inputs.Invalid as e:
-        return redirect(request, f"/brokers/add?kind={kind}", e.text(language(request)), "error")
+        return redirect(request, "/brokers/add", e.text(language(request)), "error")
+    name = known[0]
     ctx.update(lambda cfg: cfg.brokers.__setitem__(slot, config_mod.BrokerConfig(label=name[:80])))
-    ctx.vault.set_broker_credentials(slot, creds)
+    ctx.vault.set_broker_credentials(slot, {"blz": blz})
     apply_labels(ctx.adapters, ctx.cfg().brokers)
     ctx.event(request, "credentials", broker=slot, detail="added")
     return redirect(request, f"/brokers/{slot}", tr(request, "Platz belegt - jetzt Zugangsdaten und Konten eintragen."))
@@ -330,3 +317,44 @@ def broker_reset(request: Request, ctx: Ctx, key: str, name: str = Form(""), ui_
                          "neu.", lang, deleted=deleted), "ok"
 
     return start_job(request, ctx, N_("Neu aufsetzen"), work, f"/brokers/{key}")
+
+
+def _drop_broker(key: str, cfg: config_mod.Config) -> None:
+    cfg.brokers.pop(key, None)
+
+
+@router.get("/brokers/{key}/remove", response_class=HTMLResponse)
+def broker_remove_page(request: Request, ctx: Ctx, key: str):
+    if key not in ctx.adapters:
+        return redirect(request, "/brokers", tr(request, "Unbekannter Broker."), "error")
+    return ctx.render(request, "broker_remove.html", key=key, adapter=ctx.adapters[key], errors={})
+
+
+@router.post("/brokers/{key}/remove")
+def broker_remove(request: Request, ctx: Ctx, key: str, name: str = Form(""), ui_password: str = Form("")):
+    """Takes a broker out: settings, saved credentials and session, sync state. Its activities stay in Wealthfolio."""
+    if key not in ctx.adapters:
+        return redirect(request, "/brokers", tr(request, "Unbekannter Broker."), "error")
+    label = ctx.adapters[key].label
+    errors = {}
+    if name.strip().casefold() != label.casefold():
+        errors["name"] = tr(request, "Bitte genau „{label}“ eingeben.", label=label)
+    if error := ctx.reconfirm(request, ui_password):
+        errors["ui_password"] = error
+    if errors:
+        response = ctx.render(request, "broker_remove.html", key=key, adapter=ctx.adapters[key], errors=errors)
+        response.status_code = 422
+        return response
+    try:
+        with run_lock(ctx.data_dir, wait=5):
+            ctx.update(partial(_drop_broker, key))
+            ctx.vault.update(lambda d: d.get("brokers", {}).pop(key, None))
+            ctx.state.forget_broker(key)
+    except AlreadyRunning:
+        return redirect(request, f"/brokers/{key}", tr(request, "Gerade läuft ein Abruf - bitte gleich noch einmal."),
+                        "warn")
+    ctx.pins.pop(key, None)
+    apply_labels(ctx.adapters, ctx.cfg().brokers)
+    ctx.event(request, "credentials", broker=key, detail="removed")
+    return redirect(request, "/brokers", tr(request, "{label} entfernt. Die Buchungen in Wealthfolio bleiben.",
+                                            label=label))

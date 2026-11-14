@@ -4,7 +4,7 @@
 
 Fetches your transactions from your brokers and banks automatically and books them, without duplicates, into your **self-hosted [Wealthfolio](https://wealthfolio.app)**. On top, it adds what Wealthfolio can't do on its own: the countries and sectors of your ETFs, ISINs, logos and a look-through into your ETFs (X-Ray). Set it up once, then everything runs by itself every morning.
 
-- **Trade Republic, Scalable Capital, comdirect, DKB, Deutsche Bank**, any other bank with **FinTS** (Sparkasse, Volksbank …) and any bank with a **PSD2** interface (through Enable Banking, so that bank's data passes through Enable Banking) – [details per bank](docs/BANKS.md)
+- **Trade Republic, Scalable Capital, comdirect, DKB, Deutsche Bank**, any other bank with **FinTS** (Sparkasse, Volksbank …) – [details per bank](docs/BANKS.md)
 - **No duplicates:** whatever is already in Wealthfolio, from a CSV or PDF import too, is recognised
 - **Read-only access** to the brokers; credentials and settings are **encrypted** (AES-256-GCM) and so is the sync database (SQLCipher, where available); the key is not stored with the data
 - **Everything in the web UI**, with a notification on your phone (ntfy) when a TAN is due
@@ -37,7 +37,7 @@ Fetches your transactions from your brokers and banks automatically and books th
 ```mermaid
 flowchart LR
   subgraph outside[Outside]
-    B[Brokers and banks<br/>TR, Scalable, FinTS, PSD2 …]
+    B[Brokers and banks<br/>TR, Scalable, FinTS …]
     A[ETF issuers<br/>iShares, Xtrackers, …]
   end
   subgraph home[Your home network]

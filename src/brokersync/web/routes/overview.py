@@ -131,19 +131,18 @@ def run_now(request: Request, ctx: Ctx, broker: str = Form("")):
         return start_run(request, ctx, [broker])
     # "Alle abrufen": the brokers that need a login first are logged in one after the other (#85), then all
     # are fetched in one run.
-    keys = [k for k, b in c.brokers.items()
-            if k in ctx.adapters and b.enabled and ctx.vault.broker(k).get("credentials")]
-    if not keys:  # say so: a broker with "Automatisch abrufen" off is skipped by this button on purpose
-        return redirect(request, "/broker", tr(
-            request, "Kein Broker zum Abrufen: Zugangsdaten fehlen oder „Automatisch abrufen“ ist bei allen aus. "
-                     "Ein einzelner Broker lässt sich mit „Jetzt abrufen“ trotzdem abrufen."), "warn")
+    keys = [k for k in c.brokers
+            if k in ctx.adapters and ctx.vault.broker(k).get("credentials")]  # "Automatisch abrufen" is the timer's
+    if not keys:
+        return redirect(request, "/broker", tr(request, "Kein Broker zum Abrufen: Es sind noch keine Zugangsdaten "
+                                                        "gespeichert."), "warn")
     login = [k for k in keys if ctx.needs_login(k, c)]
     if login:
         request.session["run_queue"] = {"todo": login, "run": keys, "login": list(login)}
         from .broker_login import start_login
 
         return start_login(request, ctx, login[0], True)
-    return start_run(request, ctx, None)
+    return start_run(request, ctx, keys)
 
 
 def start_run(request: Request, ctx: AppContext, only: list[str] | None) -> RedirectResponse:

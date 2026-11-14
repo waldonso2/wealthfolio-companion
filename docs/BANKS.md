@@ -88,28 +88,6 @@ Most German banks—including Sparkassen, Volksbanken and Raiffeisenbanken, Spar
 
 Transactions are booked as for DKB: expenses as withdrawals, incoming funds as deposits, and interest and fees separately. Current-account transactions related to securities (descriptions containing *securities*, *portfolio*, *dividend*, etc.) are held back until the corresponding securities-side transaction exists in Wealthfolio, for example after importing settlement statements. If the bank reports a portfolio, the service reads and reconciles its holdings; the portfolio is considered complete only after the bank confirms it. If your bank uses different booking descriptions or something fails, open an issue so a dedicated profile can be added.
 
-## Banks via PSD2 (e.g. N26)
-
-Every EU bank must provide account data through an interface under the Payment Services Directive (PSD2), including banks without FinTS such as N26. Only authorised account-information service providers may read this data. The service uses **Enable Banking**: **your account data passes through Enable Banking**, an authorised provider based in Finland, rather than directly from the bank to the service. If you do not want this, use FinTS or import files instead.
-
-**Create an Enable Banking app (one-time setup):**
-
-1. Create an account in the Enable Banking console and register an app for production use. Without a contract, it runs in restricted mode: free, but only for your own linked accounts.
-2. Set the **redirect URL** to this service with any path, e.g. `https://<service-address>:8443/psd2`.
-3. Keep the generated **private key** (`.pem` file).
-4. Link your bank account to the app as described in the console.
-
-**Configure** under *Brokers → Add a bank → Bank via PSD2* (up to three banks): enter the bank's name as Enable Banking lists it (and its country if it is not Germany); the service reserves the next free place and takes you to its setup page:
-
-- **Bank:** the name used by Enable Banking, e.g. `N26`. If the name is misspelled, the service suggests similar names.
-- **Country:** leave blank for Germany; otherwise enter the country code.
-- **Application ID** and **private key:** from steps 1 and 3; the key is stored encrypted in the vault.
-- **IBAN:** required only if the bank exposes multiple accounts; otherwise the current account is selected.
-
-**Login:** The service displays a link to your bank. Sign in there and approve access. You are then redirected to the redirect URL; the page itself does not need to load. Copy the URL from the browser address bar into the service. Approval lasts as long as the bank permits (usually 90 or 180 days); ntfy reminds you seven days and one day before expiry.
-
-**Bookings:** As for DKB: expenses as withdrawals, incoming funds as deposits, interest and fees separately; pending transactions are only imported once booked. PSD2 covers payment accounts, **not securities portfolios**. Current-account transactions related to securities are held until the corresponding securities-side transaction exists in Wealthfolio.
-
 ## Trade Republic
 
 The service reads your Trade Republic timeline through the app's unofficial interface, using the open-source project [pytr](https://github.com/pytr-org/pytr). Access is read-only; it cannot place orders or initiate withdrawals.

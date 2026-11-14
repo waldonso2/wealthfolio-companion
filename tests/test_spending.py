@@ -241,6 +241,13 @@ def test_switching_the_tracker_starts_a_giro_broker_over(tmp_path, monkeypatch):
     [r] = syncer.run()
     assert r.created and any("[SYNC fake:" in a["comment"] for a in wf.activities)
 
+    # Already on (set before the model existed): the confirmation alone books it again.
+    r = switch("fake", rebook="1")
+    assert "Umgeschaltet" in r.text and config_mod.load(tmp_path).brokers["fake"].spending
+    assert wf.activities == [own] and State(tmp_path).synced("fake") == {}
+    [r] = syncer.run()
+    assert r.created
+
     # And back: switching it off starts over once more, into the usual model.
     r = switch(rebook="1")
     assert "Umgeschaltet" in r.text and not config_mod.load(tmp_path).brokers["fake"].spending

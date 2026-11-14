@@ -17,8 +17,8 @@
     {{ error("broker") }}
     {% if rows | selectattr("rebook") | list %}
     <p class="muted">{{ _("Bei Brokern mit dem Hinweis „bucht das Girokonto nur mit Tracker“ (comdirect) ändert das Umschalten die Buchungsweise: Der Dienst löscht seine bisherigen Buchungen dieses Brokers und bucht beim nächsten Abruf neu - mit Tracker das ganze Girokonto, ohne Tracker wieder nur das Depot. Eigene Importe und Handbuchungen bleiben.") }}</p>
-    <label class="check"><input type="checkbox" name="rebook" value="1"> {{ _("Beim Umschalten die Buchungen dieses Brokers löschen und neu buchen") }}</label>
-    <label for="ui_password">{{ _("Passwort dieser Oberfläche (nur beim Umschalten)") }}</label>
+    <label class="check"><input type="checkbox" name="rebook" value="1"> {{ _("Beim Umschalten oder bei bereits eingeschalteten Brokern die Buchungen löschen und neu buchen") }}</label>
+    <label for="ui_password">{{ _("Passwort dieser Oberfläche (nur beim Umschalten oder Neubuchen)") }}</label>
     <input type="password" id="ui_password" name="ui_password" autocomplete="current-password"{{ invalid("ui_password") }}>
     {{ error("ui_password") }}
     {% endif %}

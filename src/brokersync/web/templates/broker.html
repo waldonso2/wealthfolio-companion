@@ -94,4 +94,9 @@
   <p>{{ _("Löscht alle Buchungen, die der Dienst für {label} in Wealthfolio angelegt hat (Kommentar „[SYNC {key}:…]“), und vergisst, was schon übernommen wurde. Der nächste Abruf holt dann alles ab dem Startdatum neu – nach den aktuellen Regeln. CSV-/PDF-Importe, von Hand angelegte Buchungen und eingetragene Anfangsbestände bleiben.", label=adapter.label, key=key) }}</p>
   <div class="actions"><a class="button danger" href="/brokers/{{ key }}/reset">{{ _("Neu aufsetzen …") }}</a></div>
 </div>
+<div class="card">
+  <h2>{{ _("Broker entfernen") }}</h2>
+  <p>{{ _("Löscht die Einstellungen, die gespeicherten Zugangsdaten und den Abrufstand von {label}. Die Buchungen in Wealthfolio bleiben.", label=adapter.label) }}</p>
+  <div class="actions"><a class="button danger" href="/brokers/{{ key }}/remove">{{ _("Entfernen …") }}</a></div>
+</div>
 {% endblock %}

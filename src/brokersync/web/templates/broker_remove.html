@@ -1,0 +1,19 @@
+{% extends "base.html" %}{% block title %}{{ _("Broker entfernen") }}{% endblock %}
+{% block content %}
+{% from "_forms.html" import invalid, error, reauth_field with context %}
+<div class="card">
+  <h1>{{ _("{label} entfernen", label=adapter.label) }}</h1>
+  <p>{{ _("Löscht die Einstellungen, die gespeicherten Zugangsdaten und den Abrufstand von {label}. Die Buchungen in Wealthfolio bleiben.", label=adapter.label) }}</p>
+  <form method="post" action="/brokers/{{ key }}/remove">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label for="confirm_name">{{ _("Zum Bestätigen den Namen des Brokers eingeben: {label}", label=adapter.label) }}</label>
+    <input type="text" id="confirm_name" name="name" autocomplete="off" required{{ invalid("name") }}>
+    {{ error("name") }}
+    {{ reauth_field("remove_pw") }}
+    <div class="actions">
+      <button class="danger">{{ _("Entfernen") }}</button>
+      <a class="button secondary" href="/brokers/{{ key }}">{{ _("Abbrechen") }}</a>
+    </div>
+  </form>
+</div>
+{% endblock %}
