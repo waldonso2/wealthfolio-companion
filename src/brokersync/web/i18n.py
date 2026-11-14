@@ -429,8 +429,9 @@ EN: dict[str, str] = {
         "Switched: {deleted} bookings deleted. Now fetch the broker - it books everything again "
         "(comdirect asks for a TAN).",
     "bucht das Girokonto nur mit Tracker": "books the giro account only with the tracker",
-    "Passwort dieser Oberfläche (nur beim Umschalten)": "Password of this interface (only when switching)",
-    "Beim Umschalten die Buchungen dieses Brokers löschen und neu buchen":
+    "Passwort dieser Oberfläche (nur beim Umschalten oder Neubuchen)":
+        "Password of this interface (only when switching or booking again)",
+    "Beim Umschalten oder bei bereits eingeschalteten Brokern die Buchungen löschen und neu buchen":
         "When switching, delete this broker's bookings and book them again",
     ("Bei Brokern mit dem Hinweis „bucht das Girokonto nur mit Tracker“ (comdirect) ändert das Umscha"
      "lten die Buchungsweise: Der Dienst löscht seine bisherigen Buchungen dieses Brokers und bucht b"
@@ -442,13 +443,17 @@ EN: dict[str, str] = {
         "the whole giro account with the tracker, only the depot without it. Your own imports and manual entries "
         "stay."),
     "Bank hinzufügen": "Add a bank",
-    ("Für eine Bank, die nicht oben steht: mit FinTS (die meisten deutschen Banken) oder über PSD2 "
-     "(Enable Banking)."):
-        "For a bank that is not listed above: with FinTS (most German banks) or via PSD2 (Enable Banking).",
-    "Art der Anbindung": "Type of connection",
-    "Bitte wählen": "Please choose",
-    "Bank mit FinTS": "Bank with FinTS",
-    "Bank über PSD2": "Bank via PSD2",
+    "Für eine Bank, die nicht oben steht: mit FinTS (die meisten deutschen Banken).":
+        "For a bank that is not listed above: with FinTS (most German banks).",
+    "Bank mit FinTS hinzufügen": "Add a bank with FinTS",
+    "Broker entfernen": "Remove broker",
+    "{label} entfernen": "Remove {label}",
+    "Entfernen …": "Remove …",
+    ("Löscht die Einstellungen, die gespeicherten Zugangsdaten und den Abrufstand von {label}. "
+     "Die Buchungen in Wealthfolio bleiben."):
+        "Deletes the settings, the saved credentials and the fetch state of {label}. The bookings in Wealthfolio stay.",
+    "{label} entfernt. Die Buchungen in Wealthfolio bleiben.":
+        "{label} removed. The bookings in Wealthfolio stay.",
     "Weiter": "Next",
     "← Broker": "← Brokers",
     "Bank mit FinTS: such deine Bank in der Liste der Deutschen Kreditwirtschaft (Name oder Bankleitzahl).":
@@ -459,20 +464,12 @@ EN: dict[str, str] = {
     "Bankleitzahl": "Bank code",
     "Keine Bank gefunden. Mindestens drei Zeichen des Namens oder die Bankleitzahl eingeben.":
         "No bank found. Enter at least three characters of the name, or the bank code.",
-    ("Bank über PSD2: Der Dienst nutzt dafür Enable Banking mit deiner eigenen App. Den Namen trägst du so ein, "
-     "wie Enable Banking die Bank führt."):
-        "Bank via PSD2: the service uses Enable Banking with your own app. Enter the name the way Enable Banking "
-        "lists the bank.",
-    "Land (leer: Deutschland)": "Country (empty: Germany)",
-    "Bitte zuerst die Art der Anbindung wählen.": "Please choose the type of connection first.",
     "Alle Plätze dieser Art sind belegt.": "All places of this type are taken.",
     "Diese Bankleitzahl ist nicht in der Liste.": "This bank code is not in the list.",
     "Platz belegt - jetzt Zugangsdaten und Konten eintragen.":
         "Place taken - now enter the credentials and accounts.",
-    ("Kein Broker zum Abrufen: Zugangsdaten fehlen oder „Automatisch abrufen“ ist bei allen aus. "
-     "Ein einzelner Broker lässt sich mit „Jetzt abrufen“ trotzdem abrufen."):
-        ("No broker to fetch: credentials are missing or “Fetch automatically” is off for all of them. "
-         "A single broker can still be fetched with “Fetch now”."),
+    "Kein Broker zum Abrufen: Es sind noch keine Zugangsdaten gespeichert.":
+        "No broker to fetch: no credentials are saved yet.",
     ("Es läuft schon ein anderer Abruf (der Zeitplan). Nichts wurde abgerufen - "
      "bitte in ein paar Minuten noch einmal."):
         "Another fetch (the schedule) is already running. Nothing was fetched - please try again in a few minutes.",

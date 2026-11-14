@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.0b18
+
+- **"Fetch all" fetches every broker that has saved credentials.** "Fetch automatically" only concerns the schedule; a broker with it switched off was skipped by the button, which ended in "No broker to fetch".
+- **A broker can be removed** (*Brokers → broker → Remove*, name and password): its settings, saved credentials, session and sync state go; the bookings in Wealthfolio stay. A bank slot becomes free again.
+- **PSD2 (Enable Banking) is no longer offered** when adding a bank; *Add a bank* is FinTS only. A PSD2 bank set up earlier keeps working and can be removed.
+- **comdirect with the spending tracker, already switched on:** the confirmation on the spending page now also books a broker again that is on already (set before the whole current account was booked), so its history and the opening deposit arrive.
+
 ## 0.1.0b17
 
 - **N26 over the app's interface is removed.** N26 switched off the interface the service used (`/api/smrt/transactions` in October 2023, `/api/accounts` in January 2024, according to N26's own documentation for third parties), so every fetch ended in HTTP 503 - which the service reported as a rate limit. The adapter, its tests and its documentation are gone; on the next start an existing N26 setup is cleaned up like the old test broker (its settings, saved e-mail and password, session and sync state; the activities it booked stay in Wealthfolio, the overview shows once how many and how to find them: `[SYNC n26:`). The way to N26 is *Brokers → Add a bank → Bank via PSD2* (Enable Banking).

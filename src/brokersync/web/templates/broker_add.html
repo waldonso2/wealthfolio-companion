@@ -3,7 +3,6 @@
 <p class="actions"><a class="button secondary" href="/brokers">{{ _("← Broker") }}</a></p>
 <div class="card">
   <h1>{{ _("Bank hinzufügen") }}</h1>
-  {% if kind == "fints" %}
   <p class="muted">{{ _("Bank mit FinTS: such deine Bank in der Liste der Deutschen Kreditwirtschaft (Name oder Bankleitzahl).") }}</p>
   <form method="get" action="/brokers/add" class="actions">
     <input type="hidden" name="kind" value="fints">
@@ -24,17 +23,6 @@
     {% else %}
     <p role="status">{{ _("Keine Bank gefunden. Mindestens drei Zeichen des Namens oder die Bankleitzahl eingeben.") }}</p>
     {% endif %}
-  {% endif %}
-  {% else %}
-  <p class="muted">{{ _("Bank über PSD2: Der Dienst nutzt dafür Enable Banking mit deiner eigenen App. Den Namen trägst du so ein, wie Enable Banking die Bank führt.") }}</p>
-  <form method="post" action="/brokers/add">
-    <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="kind" value="psd2">
-    <label for="bank">{{ _("Bank") }}</label>
-    <input type="text" id="bank" name="bank" maxlength="80" required autocomplete="off">
-    <label for="country">{{ _("Land (leer: Deutschland)") }}</label>
-    <input type="text" id="country" name="country" maxlength="2" autocomplete="off">
-    <div class="actions"><button>{{ _("Hinzufügen") }}</button></div>
-  </form>
   {% endif %}
 </div>
 {% endblock %}

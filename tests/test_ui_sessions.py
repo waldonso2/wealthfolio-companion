@@ -250,9 +250,9 @@ def test_fetch_all_says_why_nothing_was_fetched(tmp_path, monkeypatch):
         enabled=False, cash_account_id="acc-cash", portfolio_account_id="acc-depot")))
     token = csrf(client, "/broker")
     r = client.post("/run", data={"csrf": token})
-    assert "Kein Broker zum Abrufen" in r.text  # a broker with automatic fetching off is skipped on purpose
+    assert "Kein Broker zum Abrufen" in r.text  # nothing saved yet
 
-    config_mod.update(tmp_path, lambda c: setattr(c.brokers["fake"], "enabled", True))
+    # "Fetch automatically" off only concerns the timer: the button fetches every broker that has credentials.
     Vault(tmp_path).set_broker_credentials("fake", {"username": "max"})
 
     def busy(*args, **kwargs):
@@ -285,18 +285,17 @@ def test_banks_are_added_in_a_dialog_and_empty_places_are_not_listed(tmp_path):
     client = _real_app(tmp_path)
     first_password(client)
     page = client.get("/brokers").text
-    assert "Weitere Bank" not in page and "Bank über PSD2" not in page.split("<h2>")[0]  # no empty places
-    assert 'value="fints"' in page and 'value="psd2"' in page and "Trade Republic" in page
-    assert "Bitte zuerst" in client.get("/brokers/add?kind=x", follow_redirects=True).text
+    assert "Weitere Bank" not in page and "PSD2" not in page  # no empty places, no PSD2
+    assert 'href="/brokers/add?kind=fints"' in page and "Trade Republic" in page
 
     blz, name = institutes.search("sparkasse")[0]
     assert institutes.search("sp") == []  # fewer than three characters match nothing
-    found = client.get("/brokers/add?kind=fints&q=sparkasse").text
+    found = client.get("/brokers/add?q=sparkasse").text
     assert f'<option value="{blz}">' in found
-    token = csrf(client, "/brokers/add?kind=fints")
-    bad = client.post("/brokers/add", data={"csrf": token, "kind": "fints", "bank": "99999999"})
+    token = csrf(client, "/brokers/add")
+    bad = client.post("/brokers/add", data={"csrf": token, "bank": "99999999"})
     assert "nicht in der Liste" in bad.text and not config_mod.load(tmp_path).brokers
-    r = client.post("/brokers/add", data={"csrf": token, "kind": "fints", "bank": blz}, follow_redirects=False)
+    r = client.post("/brokers/add", data={"csrf": token, "bank": blz}, follow_redirects=False)
     assert r.headers["location"] == "/brokers/fints1"
     assert config_mod.load(tmp_path).brokers["fints1"].label == name
     assert Vault(tmp_path).broker("fints1")["credentials"] == {"blz": blz}
@@ -306,15 +305,18 @@ def test_banks_are_added_in_a_dialog_and_empty_places_are_not_listed(tmp_path):
     assert ADAPTERS["fints1"].label == name
 
     for expected in ("fints2", "fints3"):  # the next free place each time, then none
-        r = client.post("/brokers/add", data={"csrf": token, "kind": "fints", "bank": blz}, follow_redirects=False)
+        r = client.post("/brokers/add", data={"csrf": token, "bank": blz}, follow_redirects=False)
         assert r.headers["location"] == f"/brokers/{expected}"
-    assert 'value="fints"' not in client.get("/brokers").text
-    assert "Alle Plätze" in client.get("/brokers/add?kind=fints", follow_redirects=True).text
+    assert 'href="/brokers/add?kind=fints"' not in client.get("/brokers").text
+    assert "Alle Plätze" in client.get("/brokers/add", follow_redirects=True).text
 
-    r = client.post("/brokers/add", data={"csrf": token, "kind": "psd2", "bank": "Testbank", "country": "at"},
+    # Taking a bank out: name and password, then settings, credentials and state are gone and the place is free.
+    token = csrf(client, "/brokers/fints1/remove")
+    r = client.post("/brokers/fints1/remove", data={"csrf": token, "name": "falsch", "ui_password": PASSWORD})
+    assert r.status_code == 422 and "fints1" in config_mod.load(tmp_path).brokers
+    r = client.post("/brokers/fints1/remove", data={"csrf": token, "name": name, "ui_password": PASSWORD},
                     follow_redirects=False)
-    assert r.headers["location"] == "/brokers/psd2-1"
-    assert Vault(tmp_path).broker("psd2-1")["credentials"] == {"bank": "Testbank", "country": "AT"}
-    assert "Testbank" in client.get("/brokers").text
-    for key in ("fints1", "fints2", "fints3", "psd2-1"):  # leave the shared classes as they were
+    assert r.status_code == 303 and "fints1" not in config_mod.load(tmp_path).brokers
+    assert not Vault(tmp_path).broker("fints1")
+    for key in ("fints1", "fints2", "fints3"):  # leave the shared classes as they were
         ADAPTERS[key].label = ADAPTERS[key].default_label
