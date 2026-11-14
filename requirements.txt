@@ -455,9 +455,9 @@ enum-tools==0.12.0 \
     --hash=sha256:13ceb9376a4c5f574a1e7c5f9c8eb7f3d3fbfbb361cc18a738df1a58dfefd460 \
     --hash=sha256:d69b019f193c7b850b17d9ce18440db7ed62381571409af80ccc08c5218b340a
     # via fints
-fastapi==0.162.0 \
-    --hash=sha256:3785963de305dd09912426cb81f2d230fce98ab3521cdfe97265c8d14983128c \
-    --hash=sha256:6a22c1e2e6e32e0633ee7e170f00009a29b8228b16feb219ee42f32fd8d88a8f
+fastapi==0.162.1 \
+    --hash=sha256:8107bbfbde522cbd3edcfb32e4923f1786fc52d901ff60a9f724f142df24a648 \
+    --hash=sha256:b18411785f55d05baa296fcfa2901f26728483190e7d8eb8f8e6aa47ed94b030
     # via wealthfolio-companion (pyproject.toml)
 fints==5.0.1 \
     --hash=sha256:2799e447c7940152ace67bd8984e17deec31cf4461e46f90ad6b12271a64b6ff \
