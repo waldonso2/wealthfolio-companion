@@ -418,6 +418,23 @@ EN: dict[str, str] = {
         ("{old} ({n_old} shares) out, {new} ({n_new} shares) in. The old position's cost basis comes from "
          "Wealthfolio and moves to the new one – no gain, no loss. Nothing is booked until you click."),
     "Tausch buchen": "Book the exchange",
+    ("Kein Broker zum Abrufen: Zugangsdaten fehlen oder „Automatisch abrufen“ ist bei allen aus. "
+     "Ein einzelner Broker lässt sich mit „Jetzt abrufen“ trotzdem abrufen."):
+        ("No broker to fetch: credentials are missing or “Fetch automatically” is off for all of them. "
+         "A single broker can still be fetched with “Fetch now”."),
+    ("Es läuft schon ein anderer Abruf (der Zeitplan). Nichts wurde abgerufen - "
+     "bitte in ein paar Minuten noch einmal."):
+        "Another fetch (the schedule) is already running. Nothing was fetched - please try again in a few minutes.",
+    "Gesamtaufteilung des Fonds": "Breakdown of the whole fund",
+    "Die Seite aktualisiert sich alle 2 Sekunden.": "The page refreshes every 2 seconds.",
+    "Kosten der ETFs: bisher {so_far} EUR, davon laufend {yearly} EUR im Jahr.":
+        "Cost of the ETFs: {so_far} EUR so far, of which {yearly} EUR a year running.",
+    ("Kosten bisher {so_far} EUR (Ordergebühren {fees}, Spread {spread}, laufend {running}, "
+     "Depotgebühr {custody})"):
+        "Cost so far {so_far} EUR (order fees {fees}, spread {spread}, running {running}, custody {custody})",
+    "{yearly} EUR im Jahr": "{yearly} EUR a year",
+    "Kosten im Jahr unbekannt": "Cost a year unknown",
+    "Kostenquote {rate}": "Cost rate {rate}",
     "Ignoriert - die Buchung wird nicht mehr angezeigt und nie gebucht.":
         "Ignored – the booking is no longer shown and never booked.",
     "Alte Position in Wealthfolio": "Old position in Wealthfolio",
@@ -938,8 +955,6 @@ EN: dict[str, str] = {
         "{job} running …",
     "Warte auf deine Freigabe in der App (seit {when})":
         "Waiting for your approval in the app (since {when})",
-    "Die Seite aktualisiert sich alle 10 Sekunden.":
-        "The page refreshes every 10 seconds.",
     "Automatisch aktualisieren anhalten":
         "Stop refreshing automatically",
     "Aktualisieren":
@@ -1214,8 +1229,6 @@ EN: dict[str, str] = {
     "Produktseite bei iShares für {name}": "iShares product page for {name}",
     "Positionsliste für {name} (CSV, XLSX oder XLS)": "Holdings list for {name} (CSV, XLSX or XLS)",
     "Abruf fehlgeschlagen": "Fetch failed",
-    "In Wealthfolio stammen {what} dieses ETFs von Finanzfluss, weil die Liste des Anbieters zu wenig davon nennt.":
-        "In Wealthfolio, {what} of this ETF come from Finanzfluss, as the issuer's list names too little of them.",
     "Länder und Sektoren": "countries and sectors", "die Länder": "the countries", "die Sektoren": "the sectors",
     "{n} von {m}: {name}": "{n} of {m}: {name}",
     "Alle {n}": "All {n}",
@@ -1462,7 +1475,6 @@ EN: dict[str, str] = {
     "Noch nichts in Wealthfolio eingetragen.": "Nothing entered in Wealthfolio yet.",
     "Liste des Anbieters": "Issuer's list",
     "Länderaufteilung des Anbieters": "Issuer's country breakdown",
-    "Finanzfluss": "Finanzfluss",
     "Quelle der Länder und Sektoren je Fonds": "Source of countries and sectors per fund",
     "Fonds": "Fund",
     "Anbieter": "Issuer",

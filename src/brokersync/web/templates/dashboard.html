@@ -1,5 +1,5 @@
 {% extends "base.html" %}{% from "_icons.html" import icon %}{% block title %}{{ _("Broker") }}{% endblock %}
-{% block head %}{% if refresh %}<meta http-equiv="refresh" content="10">{% endif %}{% endblock %}
+{% block head %}{% if refresh %}<meta http-equiv="refresh" content="2">{% endif %}{% endblock %}
 {% block content %}
 {% set LIGHT = {"green": _("alles in Ordnung"), "yellow": _("bitte ansehen"), "red": _("Handlungsbedarf"), "grey": _("noch kein Abruf")} %}
 {% for n in retired_notices %}
@@ -38,7 +38,7 @@
   <p><strong>{% if progress.broker %}{{ _("{label} ({n} von {m})", label=progress.label, n=progress.n, m=progress.m) }}{% else %}{{ _("{job} läuft …", job=_(job)) }}{% endif %}</strong>
   {% if progress.phase == "approval" %} · {{ _("Warte auf deine Freigabe in der App (seit {when})", when=progress.since | local) }}
   {% elif progress.phase %} · {{ PHASE.get(progress.phase, progress.phase) }}{% endif %}</p>
-  <p class="muted">{% if refresh %}{{ _("Die Seite aktualisiert sich alle 10 Sekunden.") }} <a href="/broker?still=1">{{ _("Automatisch aktualisieren anhalten") }}</a>{% else %}<a href="/broker">{{ _("Aktualisieren") }}</a>{% endif %}</p>
+  <p class="muted">{% if refresh %}{{ _("Die Seite aktualisiert sich alle 2 Sekunden.") }} <a href="/broker?still=1">{{ _("Automatisch aktualisieren anhalten") }}</a>{% else %}<a href="/broker">{{ _("Aktualisieren") }}</a>{% endif %}</p>
 </div>
 {% endif %}
 {% if checklist %}

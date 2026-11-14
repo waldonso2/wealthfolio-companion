@@ -137,6 +137,7 @@ def lookthrough_page(request: Request, ctx: Ctx, top: str = TOPS[0], fund: str =
         own={h.id: xray.own_share(h, holdings) for h in with_list},
         risks=[f for f in found if f.key not in accepted], accepted=[f for f in found if f.key in accepted],
         kind=KIND, cfg=c, limit_fields=LIMIT_FIELDS, limits=limits, base=depot.base, cost=cost,
+        cost_by={k.id: k for k in cost.positions},
         ters={p["id"]: lookthrough.ter(lookthrough.status(state, p["id"])) for p in depot.positions},
         cost_fields=COST_FIELDS, brokers=[k for k in c.brokers if k in ctx.adapters],
         typed=lambda raw, percent: _typed(raw, percent, language(request)),

@@ -175,7 +175,7 @@ def test_overview_shows_the_running_broker_and_refreshes_slowly(tmp_path):
     State(tmp_path).set_meta(meta_keys.PROGRESS(), '{"broker": "fake", "label": "Test", "n": 1, "m": 2, '
                                                    '"phase": "approval", "since": "2026-10-15T08:00:00+00:00"}')
     page = client.get("/broker").text
-    assert '<meta http-equiv="refresh" content="10">' in page and 'aria-live="polite"' in page
+    assert '<meta http-equiv="refresh" content="2">' in page and 'aria-live="polite"' in page
     assert "Test (1 von 2)" in page and "Warte auf deine Freigabe in der App (seit 15.10.2026 10:00)" in page
     page = client.get("/broker?still=1").text
     assert "http-equiv" not in page and "Aktualisieren" in page
@@ -239,3 +239,25 @@ def test_two_config_changes_at_once_both_stay(tmp_path):
         t.join()
     c = config_mod.load(tmp_path)
     assert (c.sync_mode, c.ui_language) == ("safe", "en")
+
+
+def test_fetch_all_says_why_nothing_was_fetched(tmp_path, monkeypatch):
+    from brokersync.sync import AlreadyRunning
+
+    client, _wf, _n = make(tmp_path)
+    first_password(client)
+    config_mod.update(tmp_path, lambda c: c.brokers.__setitem__("fake", config_mod.BrokerConfig(
+        enabled=False, cash_account_id="acc-cash", portfolio_account_id="acc-depot")))
+    token = csrf(client, "/broker")
+    r = client.post("/run", data={"csrf": token})
+    assert "Kein Broker zum Abrufen" in r.text  # a broker with automatic fetching off is skipped on purpose
+
+    config_mod.update(tmp_path, lambda c: setattr(c.brokers["fake"], "enabled", True))
+    Vault(tmp_path).set_broker_credentials("fake", {"username": "max"})
+
+    def busy(*args, **kwargs):
+        raise AlreadyRunning
+
+    monkeypatch.setattr(client.app.app().state.ctx.syncer, "run", busy)
+    r = client.post("/run", data={"csrf": csrf(client, "/broker")})
+    assert "Nichts wurde abgerufen" in r.text and "Abruf beendet" not in r.text
