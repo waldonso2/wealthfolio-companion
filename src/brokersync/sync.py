@@ -46,7 +46,7 @@ from . import config as config_mod
 from . import history as history_mod
 from . import logos as logos_mod
 from . import repair as repair_mod
-from .adapters import ADAPTERS, AdapterError, AuthRequired, BrokerAdapter
+from .adapters import ADAPTERS, AdapterError, AuthRequired, BrokerAdapter, apply_labels
 from .adapters.base import RateLimited, safety_state
 from .adapters.fints import NO_TAN_DAYS
 from .dedup import ExistingIndex
@@ -172,6 +172,7 @@ class Syncer:
         self.state = State(self.data_dir)
         retired.clean_up(self.data_dir, self.state, self.vault)
         self.adapters = adapters or ADAPTERS
+        apply_labels(self.adapters, config_mod.load(self.data_dir).brokers)
         self._consent_existing()
         self._wealthfolio = wealthfolio or WealthfolioClient
         # Seconds to give Wealthfolio to recalculate holdings before the check.

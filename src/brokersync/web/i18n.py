@@ -418,6 +418,34 @@ EN: dict[str, str] = {
         ("{old} ({n_old} shares) out, {new} ({n_new} shares) in. The old position's cost basis comes from "
          "Wealthfolio and moves to the new one – no gain, no loss. Nothing is booked until you click."),
     "Tausch buchen": "Book the exchange",
+    "Bank hinzufügen": "Add a bank",
+    ("Für eine Bank, die nicht oben steht: mit FinTS (die meisten deutschen Banken) oder über PSD2 "
+     "(Enable Banking)."):
+        "For a bank that is not listed above: with FinTS (most German banks) or via PSD2 (Enable Banking).",
+    "Art der Anbindung": "Type of connection",
+    "Bitte wählen": "Please choose",
+    "Bank mit FinTS": "Bank with FinTS",
+    "Bank über PSD2": "Bank via PSD2",
+    "Weiter": "Next",
+    "← Broker": "← Brokers",
+    "Bank mit FinTS: such deine Bank in der Liste der Deutschen Kreditwirtschaft (Name oder Bankleitzahl).":
+        "Bank with FinTS: search for your bank in the list of the German banking industry (name or bank code).",
+    "Bank suchen": "Search for a bank",
+    "Suchen": "Search",
+    "Bank": "Bank",
+    "Bankleitzahl": "Bank code",
+    "Keine Bank gefunden. Mindestens drei Zeichen des Namens oder die Bankleitzahl eingeben.":
+        "No bank found. Enter at least three characters of the name, or the bank code.",
+    ("Bank über PSD2: Der Dienst nutzt dafür Enable Banking mit deiner eigenen App. Den Namen trägst du so ein, "
+     "wie Enable Banking die Bank führt."):
+        "Bank via PSD2: the service uses Enable Banking with your own app. Enter the name the way Enable Banking "
+        "lists the bank.",
+    "Land (leer: Deutschland)": "Country (empty: Germany)",
+    "Bitte zuerst die Art der Anbindung wählen.": "Please choose the type of connection first.",
+    "Alle Plätze dieser Art sind belegt.": "All places of this type are taken.",
+    "Diese Bankleitzahl ist nicht in der Liste.": "This bank code is not in the list.",
+    "Platz belegt - jetzt Zugangsdaten und Konten eintragen.":
+        "Place taken - now enter the credentials and accounts.",
     ("Kein Broker zum Abrufen: Zugangsdaten fehlen oder „Automatisch abrufen“ ist bei allen aus. "
      "Ein einzelner Broker lässt sich mit „Jetzt abrufen“ trotzdem abrufen."):
         ("No broker to fetch: credentials are missing or “Fetch automatically” is off for all of them. "

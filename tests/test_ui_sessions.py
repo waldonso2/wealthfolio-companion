@@ -261,3 +261,60 @@ def test_fetch_all_says_why_nothing_was_fetched(tmp_path, monkeypatch):
     monkeypatch.setattr(client.app.app().state.ctx.syncer, "run", busy)
     r = client.post("/run", data={"csrf": csrf(client, "/broker")})
     assert "Nichts wurde abgerufen" in r.text and "Abruf beendet" not in r.text
+
+
+def _real_app(tmp_path):
+    """The app with the real adapters (the fake broker replaces them in make())."""
+    from starlette.testclient import TestClient
+
+    from brokersync.wealthfolio import WealthfolioClient
+    from brokersync.web.app import create_app
+
+    from .fakes import FakeWealthfolio
+    from .test_sync import RecordingNotifier
+
+    wf = FakeWealthfolio()
+    app = create_app(tmp_path, wealthfolio=lambda url, pw: WealthfolioClient(url, pw, transport=wf.transport()),
+                     notifier=RecordingNotifier(), run_in_thread=False)
+    return TestClient(app, base_url="http://sync.local:8090")
+
+
+def test_banks_are_added_in_a_dialog_and_empty_places_are_not_listed(tmp_path):
+    from brokersync.adapters import ADAPTERS, institutes
+
+    client = _real_app(tmp_path)
+    first_password(client)
+    page = client.get("/brokers").text
+    assert "Weitere Bank" not in page and "Bank über PSD2" not in page.split("<h2>")[0]  # no empty places
+    assert 'value="fints"' in page and 'value="psd2"' in page and "Trade Republic" in page
+    assert "Bitte zuerst" in client.get("/brokers/add?kind=x", follow_redirects=True).text
+
+    blz, name = institutes.search("sparkasse")[0]
+    assert institutes.search("sp") == []  # fewer than three characters match nothing
+    found = client.get("/brokers/add?kind=fints&q=sparkasse").text
+    assert f'<option value="{blz}">' in found
+    token = csrf(client, "/brokers/add?kind=fints")
+    bad = client.post("/brokers/add", data={"csrf": token, "kind": "fints", "bank": "99999999"})
+    assert "nicht in der Liste" in bad.text and not config_mod.load(tmp_path).brokers
+    r = client.post("/brokers/add", data={"csrf": token, "kind": "fints", "bank": blz}, follow_redirects=False)
+    assert r.headers["location"] == "/brokers/fints1"
+    assert config_mod.load(tmp_path).brokers["fints1"].label == name
+    assert Vault(tmp_path).broker("fints1")["credentials"] == {"blz": blz}
+    assert f'value="{blz}"' in client.get("/brokers/fints1").text  # the setup page has the bank code
+    listed = client.get("/brokers").text
+    assert name in listed and "Weitere Bank 1" not in listed
+    assert ADAPTERS["fints1"].label == name
+
+    for expected in ("fints2", "fints3"):  # the next free place each time, then none
+        r = client.post("/brokers/add", data={"csrf": token, "kind": "fints", "bank": blz}, follow_redirects=False)
+        assert r.headers["location"] == f"/brokers/{expected}"
+    assert 'value="fints"' not in client.get("/brokers").text
+    assert "Alle Plätze" in client.get("/brokers/add?kind=fints", follow_redirects=True).text
+
+    r = client.post("/brokers/add", data={"csrf": token, "kind": "psd2", "bank": "Testbank", "country": "at"},
+                    follow_redirects=False)
+    assert r.headers["location"] == "/brokers/psd2-1"
+    assert Vault(tmp_path).broker("psd2-1")["credentials"] == {"bank": "Testbank", "country": "AT"}
+    assert "Testbank" in client.get("/brokers").text
+    for key in ("fints1", "fints2", "fints3", "psd2-1"):  # leave the shared classes as they were
+        ADAPTERS[key].label = ADAPTERS[key].default_label

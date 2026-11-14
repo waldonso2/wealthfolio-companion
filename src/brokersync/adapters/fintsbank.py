@@ -23,8 +23,10 @@ class FintsBankAdapter(FintsAdapter):
 
 
 def _slot(n: int) -> type[BrokerAdapter]:
+    label = f"Weitere Bank {n} (FinTS)"
     return type(f"FintsBank{n}Adapter", (FintsBankAdapter,),
-                {"key": f"fints{n}", "label": f"Weitere Bank {n} (FinTS)", "__module__": __name__})
+                {"key": f"fints{n}", "label": label, "default_label": label, "slot_kind": "fints",
+                 "__module__": __name__})
 
 
 BANKS = [_slot(n) for n in range(1, SLOTS + 1)]

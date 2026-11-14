@@ -40,6 +40,8 @@ class BrokerConfig:
     consented: bool = False
     # The cash account goes into Wealthfolio's spending tracker (#134).
     spending: bool = False
+    # What the user calls a bank set up in one of the fixed slots (fints1…3, psd2-1…3); empty: the adapter's label.
+    label: str = ""
 
 
 @dataclass

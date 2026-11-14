@@ -31,6 +31,16 @@ def _table() -> dict[str, tuple[str, str]]:
     return {blz: (name, url) for blz, name, url in rows}
 
 
+def search(query: str, limit: int = 40) -> list[tuple[str, str]]:
+    """(bank code, name) of the banks whose name contains the query or whose code starts with it, by name.
+    Fewer than three characters match nothing: the list has thousands of branches."""
+    q = query.strip().lower()
+    if len(q) < 3:
+        return []
+    found = [(blz, name) for blz, (name, _url) in _table().items() if q in name.lower() or blz.startswith(q)]
+    return sorted(found, key=lambda r: (r[1].lower(), r[0]))[:limit]
+
+
 def lookup(blz: str) -> tuple[str, str] | None:
     """(name, PIN/TAN address) of a bank code, None when the list doesn't know it."""
     return _table().get(blz.replace(" ", ""))
