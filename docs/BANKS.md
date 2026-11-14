@@ -79,7 +79,7 @@ The service reads your **Deutsche Bank current account** and **maxblue portfolio
 
 ## Other banks (FinTS)
 
-Most German banks—including Sparkassen, Volksbanken and Raiffeisenbanken, Sparda and PSD banks, and many direct banks—offer FinTS with PIN/TAN. Configure up to three under *Broker → Other bank 1 (FinTS)*, *Other bank 2*, and *Other bank 3*.
+Most German banks—including Sparkassen, Volksbanken and Raiffeisenbanken, Sparda and PSD banks, and many direct banks—offer FinTS with PIN/TAN. Add up to three under *Brokers → Add a bank → Bank with FinTS*: search for your bank by name or bank code, pick it from the list, and the service reserves the next free place, fills in the bank code and takes you to its setup page. The bank then appears in the list under its own name.
 
 - **Login name and PIN:** as in your bank's online banking.
 - **Bank code:** your account's eight-digit bank code.
@@ -99,7 +99,7 @@ Every EU bank must provide account data through an interface under the Payment S
 3. Keep the generated **private key** (`.pem` file).
 4. Link your bank account to the app as described in the console.
 
-**Configure** under *Broker → Bank via PSD2 1* (up to three banks: *2* and *3*):
+**Configure** under *Brokers → Add a bank → Bank via PSD2* (up to three banks): enter the bank's name as Enable Banking lists it (and its country if it is not Germany); the service reserves the next free place and takes you to its setup page:
 
 - **Bank:** the name used by Enable Banking, e.g. `N26`. If the name is misspelled, the service suggests similar names.
 - **Country:** leave blank for Germany; otherwise enter the country code.

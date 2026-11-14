@@ -6,7 +6,7 @@
 {% else %}<p class="muted">{{ _("Noch nichts in Wealthfolio eingetragen.") }}</p>{% endif %}
 {% if funds %}
 <details class="panel"><summary>{{ _("Quelle je Fonds ({n} ETFs)", n=funds | length) }}</summary>
-{% set SOURCE = {"lines": _("Liste des Anbieters"), "breakdown": _("Länderaufteilung des Anbieters"), "finanzfluss": _("Finanzfluss")} %}
+{% set SOURCE = {"lines": _("Liste des Anbieters"), "breakdown": _("Länderaufteilung des Anbieters"), "finanzfluss": _("Gesamtaufteilung des Fonds")} %}
 <div class="table"><table>
   <caption class="sr-only">{{ _("Quelle der Länder und Sektoren je Fonds") }}</caption>
   <thead><tr><th scope="col">{{ _("Fonds") }}</th><th scope="col">{{ _("Anbieter") }}</th><th scope="col">{{ _("Länder") }}</th><th scope="col">{{ _("Sektoren") }}</th></tr></thead>

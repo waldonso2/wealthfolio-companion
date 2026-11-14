@@ -133,6 +133,10 @@ def run_now(request: Request, ctx: Ctx, broker: str = Form("")):
     # are fetched in one run.
     keys = [k for k, b in c.brokers.items()
             if k in ctx.adapters and b.enabled and ctx.vault.broker(k).get("credentials")]
+    if not keys:  # say so: a broker with "Automatisch abrufen" off is skipped by this button on purpose
+        return redirect(request, "/broker", tr(
+            request, "Kein Broker zum Abrufen: Zugangsdaten fehlen oder „Automatisch abrufen“ ist bei allen aus. "
+                     "Ein einzelner Broker lässt sich mit „Jetzt abrufen“ trotzdem abrufen."), "warn")
     login = [k for k in keys if ctx.needs_login(k, c)]
     if login:
         request.session["run_queue"] = {"todo": login, "run": keys, "login": list(login)}
@@ -146,13 +150,17 @@ def start_run(request: Request, ctx: AppContext, only: list[str] | None) -> Redi
     """Start a run from the UI (``manual``: the safe mode fetches only so), with the PINs typed at the logins."""
     pins = {k: ctx.pins.pop(k) for k in list(ctx.pins) if only is None or k in only}
 
-    def work(lang: str) -> None:
+    def work(lang: str) -> tuple[str, str] | None:
         try:
             ctx.syncer.run(only, manual=True, pins=pins)
         except AlreadyRunning:
             log.info("sync skipped: already running (timer)")
+            # Not "finished": nothing was fetched, because another run (the schedule, a fund pass) holds the lock.
+            return (translate("Es läuft schon ein anderer Abruf (der Zeitplan). Nichts wurde abgerufen - "
+                              "bitte in ein paar Minuten noch einmal.", lang), "warn")
         finally:
             pins.clear()
+        return None
 
     return start_job(request, ctx, N_("Abruf"), work, "/broker",
                      started=N_("Abruf gestartet. Die Seite aktualisiert sich, bis er fertig ist."),

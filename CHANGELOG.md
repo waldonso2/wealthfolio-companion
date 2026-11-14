@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.1.0b15
+
+Small corrections to the service and X-Ray pages, and "Fetch all" now says why it fetched nothing.
+
+- **Back link as a button.** "← Services" on the service pages looks like the other secondary buttons instead of blue text.
+- **Refresh every 2 seconds** on the broker overview while a fetch is running (was 10).
+- **X-Ray: no *Costs* card.** The costs sit in the *ETFs* card: the sum so far and a year, the depot's cost rate, weighted TER, sale estimate and taxes, and under each ETF its costs so far (order fees, spread, running costs, custody), a year and its rate. The brokers' fee models moved into the *X-Ray settings*; the explanation into *What is calculated?*.
+- **No mention of Finanzfluss** on the X-Ray page (the note on where countries and sectors came from, the source name behind a TER); the service page of *Countries & Sectors* calls that source "Breakdown of the whole fund". The *About* page still lists every host the service sends data to.
+- **Adding a bank is a dialog.** *Brokers → Add a bank*: choose FinTS or PSD2 in a list; for FinTS search the banks' list by name or bank code and pick the bank, for PSD2 enter the name. The service takes the next free place (up to three each, the keys are unchanged), names it after the bank and fills in the bank code. The six empty places ("Other bank 1" …) are gone from the list; a bank is shown once it is set up, under its own name.
+- **"Fetch all" explains itself.** With no broker that has credentials and automatic fetching on, it says so (the button skips brokers with automatic fetching off on purpose; "Fetch now" on a broker still runs it). When another run (the schedule, the daily fund pass) holds the sync lock, it says that nothing was fetched instead of "Fetch finished".
+
 ## 0.1.0b14
 
 Cleaner service pages, an English first start, and two spending-tracker fixes.

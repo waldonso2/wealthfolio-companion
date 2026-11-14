@@ -2,7 +2,7 @@
 {% block content %}
 <div class="card">
   <h1>{{ _("Broker") }}</h1>
-  {% for key, adapter in adapters.items() %}
+  {% for key, adapter in shown.items() %}
   <div class="broker">
     <div><strong>{{ adapter.label }}</strong>
       {% set b = cfg.brokers.get(key) %}
@@ -11,4 +11,19 @@
   </div>
   {% endfor %}
 </div>
+{% if not (full.fints and full.psd2) %}
+<div class="card">
+  <h2>{{ _("Bank hinzufügen") }}</h2>
+  <p class="muted">{{ _("Für eine Bank, die nicht oben steht: mit FinTS (die meisten deutschen Banken) oder über PSD2 (Enable Banking).") }}</p>
+  <form method="get" action="/brokers/add" class="actions">
+    <label for="kind">{{ _("Art der Anbindung") }}</label>
+    <select id="kind" name="kind" required>
+      <option value="">{{ _("Bitte wählen") }}</option>
+      {% if not full.fints %}<option value="fints">{{ _("Bank mit FinTS") }}</option>{% endif %}
+      {% if not full.psd2 %}<option value="psd2">{{ _("Bank über PSD2") }}</option>{% endif %}
+    </select>
+    <button>{{ _("Weiter") }}</button>
+  </form>
+</div>
+{% endif %}
 {% endblock %}

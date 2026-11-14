@@ -14,6 +14,7 @@ from starlette.datastructures import UploadFile as StarletteUpload
 
 from ... import config as config_mod
 from ... import reset as reset_mod
+from ...adapters import SLOT_KINDS, apply_labels, institutes
 from ...model import Kind
 from ...sync import AlreadyRunning, refetch_flag, run_lock
 from ...wealthfolio import WealthfolioError
@@ -37,10 +38,65 @@ STATEMENT_KINDS = [(Kind.DIVIDEND, N_("Dividenden")), (Kind.BUY, N_("Käufe/Einb
                    (Kind.UNKNOWN, N_("nicht automatisch buchbar"))]
 
 
+def slot_in_use(ctx: AppContext, c: config_mod.Config, key: str) -> bool:
+    """A bank in a fixed slot counts as set up once it has a config entry or anything in the vault."""
+    return key in c.brokers or bool(ctx.vault.broker(key))
+
+
+def free_slot(ctx: AppContext, c: config_mod.Config, kind: str) -> str | None:
+    """The first slot of this kind (``fints`` / ``psd2``) nobody uses yet; the keys never change (CLAUDE.md)."""
+    return next((a.key for a in SLOT_KINDS[kind] if a.key in ctx.adapters and not slot_in_use(ctx, c, a.key)), None)
+
+
 @router.get("/brokers", response_class=HTMLResponse)
 def brokers_page(request: Request, ctx: Ctx):
     c = ctx.cfg()
-    return ctx.render(request, "brokers.html", cfg=c)
+    # The fixed brokers always; a slot bank only once it is set up (no row of empty places).
+    shown = {k: a for k, a in ctx.adapters.items() if not getattr(a, "slot_kind", None) or slot_in_use(ctx, c, k)}
+    return ctx.render(request, "brokers.html", cfg=c, shown=shown, kinds=SLOT_KINDS,
+                      full={kind: free_slot(ctx, c, kind) is None for kind in SLOT_KINDS})
+
+
+@router.get("/brokers/add", response_class=HTMLResponse)
+def broker_add_page(request: Request, ctx: Ctx, kind: str = "", q: str = ""):
+    """The dialog to add a bank over FinTS or PSD2: the kind, then (FinTS) a search in the banks' list."""
+    c = ctx.cfg()
+    if kind not in SLOT_KINDS:
+        return redirect(request, "/brokers", tr(request, "Bitte zuerst die Art der Anbindung wählen."), "error")
+    if free_slot(ctx, c, kind) is None:
+        return redirect(request, "/brokers", tr(request, "Alle Plätze dieser Art sind belegt."), "warn")
+    found = institutes.search(q) if kind == "fints" else []
+    return ctx.render(request, "broker_add.html", kind=kind, q=q.strip()[:60], found=found)
+
+
+@router.post("/brokers/add")
+def broker_add(request: Request, ctx: Ctx, kind: str = Form(""), bank: str = Form(""), country: str = Form("")):
+    """Takes the next free slot, names it and keeps the bank code (FinTS) or the name (PSD2) for the setup page."""
+    c = ctx.cfg()
+    slot = free_slot(ctx, c, kind) if kind in SLOT_KINDS else None
+    if slot is None:
+        return redirect(request, "/brokers", tr(request, "Alle Plätze dieser Art sind belegt."), "warn")
+    try:
+        if kind == "fints":
+            blz = inputs.blz(bank, N_("Bankleitzahl"))
+            known = institutes.lookup(blz)
+            if known is None:
+                raise inputs.Invalid(N_("Diese Bankleitzahl ist nicht in der Liste."))
+            name, creds = known[0], {"blz": blz}
+        else:
+            name = inputs.text(bank, N_("Bank"), max_len=80)
+            if not name:
+                raise inputs.Invalid("{label}: bitte angeben.", label=N_("Bank"))
+            creds = {"bank": name}
+            if country.strip():
+                creds["country"] = inputs.text(country, N_("Land"), max_len=2).upper()
+    except inputs.Invalid as e:
+        return redirect(request, f"/brokers/add?kind={kind}", e.text(language(request)), "error")
+    ctx.update(lambda cfg: cfg.brokers.__setitem__(slot, config_mod.BrokerConfig(label=name[:80])))
+    ctx.vault.set_broker_credentials(slot, creds)
+    apply_labels(ctx.adapters, ctx.cfg().brokers)
+    ctx.event(request, "credentials", broker=slot, detail="added")
+    return redirect(request, f"/brokers/{slot}", tr(request, "Platz belegt - jetzt Zugangsdaten und Konten eintragen."))
 
 
 @router.get("/brokers/{key}", response_class=HTMLResponse)

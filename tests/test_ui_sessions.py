@@ -175,7 +175,7 @@ def test_overview_shows_the_running_broker_and_refreshes_slowly(tmp_path):
     State(tmp_path).set_meta(meta_keys.PROGRESS(), '{"broker": "fake", "label": "Test", "n": 1, "m": 2, '
                                                    '"phase": "approval", "since": "2026-10-15T08:00:00+00:00"}')
     page = client.get("/broker").text
-    assert '<meta http-equiv="refresh" content="10">' in page and 'aria-live="polite"' in page
+    assert '<meta http-equiv="refresh" content="2">' in page and 'aria-live="polite"' in page
     assert "Test (1 von 2)" in page and "Warte auf deine Freigabe in der App (seit 15.10.2026 10:00)" in page
     page = client.get("/broker?still=1").text
     assert "http-equiv" not in page and "Aktualisieren" in page
@@ -239,3 +239,82 @@ def test_two_config_changes_at_once_both_stay(tmp_path):
         t.join()
     c = config_mod.load(tmp_path)
     assert (c.sync_mode, c.ui_language) == ("safe", "en")
+
+
+def test_fetch_all_says_why_nothing_was_fetched(tmp_path, monkeypatch):
+    from brokersync.sync import AlreadyRunning
+
+    client, _wf, _n = make(tmp_path)
+    first_password(client)
+    config_mod.update(tmp_path, lambda c: c.brokers.__setitem__("fake", config_mod.BrokerConfig(
+        enabled=False, cash_account_id="acc-cash", portfolio_account_id="acc-depot")))
+    token = csrf(client, "/broker")
+    r = client.post("/run", data={"csrf": token})
+    assert "Kein Broker zum Abrufen" in r.text  # a broker with automatic fetching off is skipped on purpose
+
+    config_mod.update(tmp_path, lambda c: setattr(c.brokers["fake"], "enabled", True))
+    Vault(tmp_path).set_broker_credentials("fake", {"username": "max"})
+
+    def busy(*args, **kwargs):
+        raise AlreadyRunning
+
+    monkeypatch.setattr(client.app.app().state.ctx.syncer, "run", busy)
+    r = client.post("/run", data={"csrf": csrf(client, "/broker")})
+    assert "Nichts wurde abgerufen" in r.text and "Abruf beendet" not in r.text
+
+
+def _real_app(tmp_path):
+    """The app with the real adapters (the fake broker replaces them in make())."""
+    from starlette.testclient import TestClient
+
+    from brokersync.wealthfolio import WealthfolioClient
+    from brokersync.web.app import create_app
+
+    from .fakes import FakeWealthfolio
+    from .test_sync import RecordingNotifier
+
+    wf = FakeWealthfolio()
+    app = create_app(tmp_path, wealthfolio=lambda url, pw: WealthfolioClient(url, pw, transport=wf.transport()),
+                     notifier=RecordingNotifier(), run_in_thread=False)
+    return TestClient(app, base_url="http://sync.local:8090")
+
+
+def test_banks_are_added_in_a_dialog_and_empty_places_are_not_listed(tmp_path):
+    from brokersync.adapters import ADAPTERS, institutes
+
+    client = _real_app(tmp_path)
+    first_password(client)
+    page = client.get("/brokers").text
+    assert "Weitere Bank" not in page and "Bank über PSD2" not in page.split("<h2>")[0]  # no empty places
+    assert 'value="fints"' in page and 'value="psd2"' in page and "Trade Republic" in page
+    assert "Bitte zuerst" in client.get("/brokers/add?kind=x", follow_redirects=True).text
+
+    blz, name = institutes.search("sparkasse")[0]
+    assert institutes.search("sp") == []  # fewer than three characters match nothing
+    found = client.get("/brokers/add?kind=fints&q=sparkasse").text
+    assert f'<option value="{blz}">' in found
+    token = csrf(client, "/brokers/add?kind=fints")
+    bad = client.post("/brokers/add", data={"csrf": token, "kind": "fints", "bank": "99999999"})
+    assert "nicht in der Liste" in bad.text and not config_mod.load(tmp_path).brokers
+    r = client.post("/brokers/add", data={"csrf": token, "kind": "fints", "bank": blz}, follow_redirects=False)
+    assert r.headers["location"] == "/brokers/fints1"
+    assert config_mod.load(tmp_path).brokers["fints1"].label == name
+    assert Vault(tmp_path).broker("fints1")["credentials"] == {"blz": blz}
+    assert f'value="{blz}"' in client.get("/brokers/fints1").text  # the setup page has the bank code
+    listed = client.get("/brokers").text
+    assert name in listed and "Weitere Bank 1" not in listed
+    assert ADAPTERS["fints1"].label == name
+
+    for expected in ("fints2", "fints3"):  # the next free place each time, then none
+        r = client.post("/brokers/add", data={"csrf": token, "kind": "fints", "bank": blz}, follow_redirects=False)
+        assert r.headers["location"] == f"/brokers/{expected}"
+    assert 'value="fints"' not in client.get("/brokers").text
+    assert "Alle Plätze" in client.get("/brokers/add?kind=fints", follow_redirects=True).text
+
+    r = client.post("/brokers/add", data={"csrf": token, "kind": "psd2", "bank": "Testbank", "country": "at"},
+                    follow_redirects=False)
+    assert r.headers["location"] == "/brokers/psd2-1"
+    assert Vault(tmp_path).broker("psd2-1")["credentials"] == {"bank": "Testbank", "country": "AT"}
+    assert "Testbank" in client.get("/brokers").text
+    for key in ("fints1", "fints2", "fints3", "psd2-1"):  # leave the shared classes as they were
+        ADAPTERS[key].label = ADAPTERS[key].default_label

@@ -319,8 +319,10 @@ def replay_transport(recording: dict) -> httpx.MockTransport:
 
 
 def _slot(n: int) -> type[BrokerAdapter]:
+    label = f"Bank über PSD2 {n}"
     return type(f"EnableBanking{n}Adapter", (EnableBankingAdapter,),
-                {"key": f"psd2-{n}", "label": f"Bank über PSD2 {n}", "__module__": __name__})
+                {"key": f"psd2-{n}", "label": label, "default_label": label, "slot_kind": "psd2",
+                 "__module__": __name__})
 
 
 # Fixed slots like the FinTS banks: a set-up bank's key (config, vault, state, [SYNC …]) never changes.
