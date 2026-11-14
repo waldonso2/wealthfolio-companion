@@ -110,16 +110,6 @@ Every EU bank must provide account data through an interface under the Payment S
 
 **Bookings:** As for DKB: expenses as withdrawals, incoming funds as deposits, interest and fees separately; pending transactions are only imported once booked. PSD2 covers payment accounts, **not securities portfolios**. Current-account transactions related to securities are held until the corresponding securities-side transaction exists in Wealthfolio.
 
-## N26
-
-> **Important:** N26 does not offer an official interface for retail customers. The service uses the interface used by the N26 app, as other finance tools do. N26 may change it or prohibit such access at any time, in which case syncing will stop. You must acknowledge this notice once in broker settings before login can start.
-
-**Configure** under *Broker → N26*: your N26 email address and password.
-
-**Login:** The service signs in and N26 sends a confirmation request to the N26 app. Approve it and click *I have confirmed in the app*. The service can then sync without you while N26 keeps the session valid. When it expires, ntfy reports *Login required*. A new request in the app only starts the UI flow; the scheduled sync never triggers one by itself. If N26 rejects the password or email, the service will not retry until you save the credentials again.
-
-**Bookings:** Incoming funds are deposits; card payments, direct debits and transfers are withdrawals. Pending transactions are imported only after booking. Moving money into an N26 Space appears as a withdrawal from the main account; a transfer rule on the *Transfers* page (e.g. a Space keyword) turns it into a transfer to a dedicated Wealthfolio account. The main-account balance is reconciled after each sync.
-
 ## Trade Republic
 
 The service reads your Trade Republic timeline through the app's unofficial interface, using the open-source project [pytr](https://github.com/pytr-org/pytr). Access is read-only; it cannot place orders or initiate withdrawals.
@@ -195,6 +185,8 @@ The service reads both your current account **and securities portfolio** through
 **Configure** under *Broker → comdirect*: access number, PIN, Client ID, Client Secret; enter the IBAN only if you have multiple current accounts. Configure a comdirect cash account and securities account in Wealthfolio.
 
 **Only the portfolio is booked, not the current account.** The comdirect cash account in Wealthfolio contains dividends only: before each purchase, the service books a deposit equal to the purchase amount; after each sale, it books a withdrawal equal to the proceeds. Current-account transfers, card payments, fees and interest are not imported, and the current-account balance is not reconciled.
+
+**With the spending tracker on, the whole current account is booked.** When *Services → Spending tracker* has the comdirect cash account selected, the service books everything the current account did, so Wealthfolio's tracker has card payments, direct debits and transfers to show: money in as deposits, money out as withdrawals (transfer rules apply), interest and fees separately, dividends as before. Securities settlements become real transfers from the current account to the portfolio, and one *Anfangsbestand* deposit (the account balance minus everything the sync booked, once) keeps the cash account at the real balance. Switching this on or off starts comdirect over: the service deletes its own bookings of this broker (imports and manual entries stay) and books everything again at the next fetch, which asks for a TAN. Turning the tracker off goes back to the portfolio-only model above.
 
 **Securities held before the start date** appear on *Check* under “Holding without purchase in Wealthfolio”. Enter the purchase date, unit price (pre-filled with comdirect's cost basis) and fees. The next sync books the purchase and corresponding deposit.
 

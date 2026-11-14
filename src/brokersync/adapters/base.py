@@ -106,6 +106,9 @@ class BrokerAdapter(ABC):
     # it (from the start date) and the comparison with Wealthfolio also finds
     # synced activities the broker no longer lists (brokersync.coverage).
     full_history: ClassVar[bool] = False
+    # True if the adapter books only a depot by default but can book the whole giro account too: the sync passes
+    # ``BrokerConfig.spending`` on as ``full_giro`` (comdirect). Switching it starts the broker over (reset.py).
+    giro_with_spending: ClassVar[bool] = False
     # True if a later version of the adapter reads the tax of dividends it booked without one before
     # (comdirect, wealthfolio-importer-addon#52): once, the sync reads from the start date again and puts
     # the tax on its own dividends (``Syncer._backfill_own_tax``).
@@ -147,6 +150,9 @@ class BrokerAdapter(ABC):
         # (``savings_label``): read it too, from ``savings_since`` (None: as far back as without a TAN).
         self.with_savings = False
         self.savings_since: datetime | None = None
+        # Set by the sync from ``BrokerConfig.spending`` for an adapter with ``giro_with_spending``: book the whole
+        # giro account (for Wealthfolio's spending tracker) instead of only the depot.
+        self.full_giro = False
 
     @staticmethod
     def parse_statement(data: bytes) -> list[dict]:

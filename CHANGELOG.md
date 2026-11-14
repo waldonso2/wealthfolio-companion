@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.0b17
+
+- **N26 over the app's interface is removed.** N26 switched off the interface the service used (`/api/smrt/transactions` in October 2023, `/api/accounts` in January 2024, according to N26's own documentation for third parties), so every fetch ended in HTTP 503 - which the service reported as a rate limit. The adapter, its tests and its documentation are gone; on the next start an existing N26 setup is cleaned up like the old test broker (its settings, saved e-mail and password, session and sync state; the activities it booked stay in Wealthfolio, the overview shows once how many and how to find them: `[SYNC n26:`). The way to N26 is *Brokers → Add a bank → Bank via PSD2* (Enable Banking).
+- **comdirect books the whole current account while the spending tracker is on.** Until now the comdirect adapter booked only the portfolio and the dividends, so the tracker had nothing to show. With the comdirect cash account selected under *Services → Spending tracker*, the service now also books card payments, direct debits, transfers, interest and fees on the cash account (transfer rules apply), turns the settlement of a trade into a real transfer from the current account to the portfolio, and books one opening deposit (*Anfangsbestand*: the account balance minus everything booked, once) so the cash account matches the real balance. The opening deposit counts as income in its month in Wealthfolio's tracker unless you add a rule for it.
+- **Switching it starts comdirect over.** The two models book a trade differently, so selecting or clearing the comdirect account on the spending page asks for a confirmation and your password, deletes the service's own comdirect bookings (imports and manual entries stay; the switch only flips after the deletion worked) and the next fetch - with its TAN - books everything again. Turning the tracker off goes back to the portfolio-only model and cleans the current-account bookings away. Switching the service off on *Services* alone changes nothing about the booking model.
+
 ## 0.1.0b15
 
 Small corrections to the service and X-Ray pages, and "Fetch all" now says why it fetched nothing.

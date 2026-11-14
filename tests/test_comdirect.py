@@ -337,3 +337,80 @@ def test_the_tax_of_a_dividend_is_read_from_its_posting_text(lines, net, tax):
 def test_a_dividend_whose_tax_cant_be_read_reliably_stays_net(lines, net):
     [tx] = cd.to_transactions([dividend(*lines, amount=net)], [], {}, today=date(2026, 4, 5))
     assert tx.kind == Kind.DIVIDEND and tx.net == D(net) and tx.tax == 0 and tx.gross is None
+
+
+# ── the whole giro account, for the spending tracker (full_giro) ──────────────────────────────────────────────
+def _giro_booking(ref, day, amount, kind="Kartenzahlung", text="", **extra):
+    return {"reference": ref, "bookingStatus": "BOOKED", "bookingDate": day, "amount": {"value": amount, "unit": "EUR"},
+            "transactionType": {"key": kind.upper(), "text": kind}, "remittanceInfo": f"01{text:<35}", **extra}
+
+
+GIRO = [
+    _giro_booking("K1", "2026-03-02", "-12.50", text="REWE MARKT", creditor={"holderName": "REWE", "iban": "DE00"}),
+    _giro_booking("G1", "2026-03-03", "2000.00", "Überweisung", "GEHALT", remitter={"holderName": "Muster GmbH"}),
+    _giro_booking("F1", "2026-03-04", "-3.90", "Entgelt", "KONTOFUEHRUNG"),
+    _giro_booking("Z1", "2026-03-31", "0.52", "Zinsen / Dividenden", "HABENZINSEN"),
+    _giro_booking("D1", "2026-03-10", "8.00", "Zinsen / Dividenden", "DIVIDENDE DE000TEST001"),
+    _giro_booking("S1", "2026-03-05", "-101.00", "Wertpapier", "KAUF DE000TEST00A"),
+    _giro_booking("S2", "2026-02-10", "-50.00", "Wertpapier", "SPARPLAN OHNE DEPOTUMSATZ"),
+    _giro_booking("S3", "2026-04-08", "-25.00", "Wertpapier", "KAUF NOCH OFFEN"),
+]
+DEPOT = [{"transactionId": "T1", "bookingStatus": "BOOKED", "businessDate": "2026-03-04", "quantity": {"value": "2"},
+          "instrument": {"isin": "DE000TEST00A", "wkn": "", "name": "TEST"}, "transactionValue": {"value": "100"},
+          "transactionType": {"key": "BUY"}}]
+
+
+def test_the_whole_giro_account_is_booked_when_the_spending_tracker_is_on():
+    today = date(2026, 4, 10)
+    off = {t.id for t in cd.to_transactions(GIRO, DEPOT, {}, today)}
+    assert off == {"dep-T1", "acc-D1"}  # the usual: the depot and its dividends only
+
+    on = {t.id: t for t in cd.to_transactions(GIRO, DEPOT, {}, today, full_giro=True)}
+    assert set(on) == {"dep-T1", "acc-D1", "acc-K1", "acc-G1", "acc-F1", "acc-Z1", "acc-S2"}  # S3 may still match
+    assert not on["dep-T1"].external_cash and on["dep-T1"].net == D("101.00")  # a real transfer giro -> depot
+    assert (on["acc-K1"].kind, on["acc-K1"].net, on["acc-K1"].counterparty) == (Kind.WITHDRAWAL, D("12.50"), "REWE")
+    assert (on["acc-G1"].kind, on["acc-G1"].counterparty) == (Kind.DEPOSIT, "Muster GmbH")
+    assert on["acc-F1"].kind == Kind.FEE and on["acc-Z1"].kind == Kind.INTEREST
+    assert on["acc-S2"].kind == Kind.WITHDRAWAL  # a securities booking that never got a depot transaction
+    assert on["acc-D1"].kind == Kind.DIVIDEND  # not booked twice as a deposit
+
+
+def test_the_opening_deposit_brings_the_cash_account_to_the_real_balance():
+    today = date(2026, 4, 10)
+    moved = sum(D(b["amount"]["value"]) for b in GIRO)  # S3 counts: the bank moved that money
+    txs = {t.id: t for t in cd.to_transactions(GIRO, DEPOT, {}, today, full_giro=True, opening_balance=D("5000"))}
+    opening = txs["giro-opening"]
+    assert (opening.kind, opening.net) == (Kind.DEPOSIT, D("5000") - moved)
+    assert opening.datetime < min(t.datetime for t in txs.values() if t.id != "giro-opening")
+    # A balance below what the bookings moved is an opening withdrawal; an exact match books nothing.
+    low = {t.id: t for t in cd.to_transactions(GIRO, DEPOT, {}, today, full_giro=True, opening_balance=D("-5000"))}
+    assert low["giro-opening"].kind == Kind.WITHDRAWAL
+    assert "giro-opening" not in {t.id for t in cd.to_transactions(GIRO, DEPOT, {}, today, full_giro=True,
+                                                                   opening_balance=moved)}
+
+
+def test_the_adapter_derives_the_opening_only_in_the_first_run_after_a_reset(monkeypatch):
+    a = ComdirectAdapter({}, {})
+    a.full_giro = True
+    a.today = date(2026, 4, 10)
+    a._depots = []
+    a._positions = []
+    monkeypatch.setattr(a, "_giro", lambda: {"accountId": "A", "balance": {"value": "5000", "unit": "EUR"}})
+    monkeypatch.setattr(a, "_dated_pages", lambda path, first, **kw: GIRO if "banking" in path else [])
+    assert "giro-opening" in {t.id for t in a.get_transactions(None)}
+    a.known_ids = {"acc-K1"}  # something is synced: no second opening
+    assert "giro-opening" not in {t.id for t in a.get_transactions(None)}
+    a.full_giro = False
+    a.known_ids = set()
+    assert {t.id for t in a.get_transactions(None)} == {"acc-D1"}  # the usual mode: only the dividend
+
+
+def test_a_trade_is_a_real_transfer_from_the_giro_account_with_the_tracker_and_an_external_deposit_without():
+    from brokersync.mapping import Accounts, to_activities
+
+    for full, first in ((True, "TRANSFER_OUT"), (False, "DEPOSIT")):
+        trade = next(t for t in cd.to_transactions(GIRO, DEPOT, {}, date(2026, 4, 10), full_giro=full)
+                     if t.id == "dep-T1")
+        types = [a["activityType"] for a in to_activities(trade, "comdirect", Accounts("cash", "depot"))]
+        assert types == [first, *(["TRANSFER_OUT", "TRANSFER_IN", "BUY"] if not full else
+                                  ["TRANSFER_IN", "BUY"])], full

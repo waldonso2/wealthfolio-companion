@@ -1,10 +1,12 @@
 """Removes what an installation still holds of brokers this version no longer has.
 
-The test broker "Dummy" (key ``dummy``) existed up to 0.3.6. Its config, saved
+The test broker "Dummy" (key ``dummy``) existed up to 0.3.6; N26 over its app's interface (key ``n26``)
+up to 0.1.0b15 - N26 switched that interface off (``/api/smrt/transactions`` in 2023, ``/api/accounts`` in 2024),
+the way to N26 is "Bank über PSD2". Their config, saved
 credentials and session, sync state, runs, unknown events and holdings check
 are removed on the next start. What it booked in Wealthfolio stays - deleting
 activities is the user's call; the overview shows once how many there are and
-how to find them (comment ``[SYNC dummy:``).
+how to find them (comment ``[SYNC <key>:``).
 """
 
 from __future__ import annotations
@@ -20,7 +22,7 @@ from .vault import Vault
 
 log = logging.getLogger(__name__)
 
-RETIRED = {"dummy": "Dummy (Test)"}
+RETIRED = {"dummy": "Dummy (Test)", "n26": "N26 (App-Schnittstelle)"}
 
 
 def clean_up(data_dir: Path, state: State, vault: Vault) -> None:

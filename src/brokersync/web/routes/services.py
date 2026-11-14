@@ -9,10 +9,12 @@ view).
 from __future__ import annotations
 
 import json
+import logging
 import re
 from collections import Counter
 from collections.abc import Callable
 from decimal import Decimal
+from functools import partial
 
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse
@@ -21,11 +23,13 @@ from ... import assets as assets_mod
 from ... import config as config_mod
 from ... import logos as logos_mod
 from ... import lookthrough, meta_keys, xray_addon
-from ...sync import AlreadyRunning
+from ... import reset as reset_mod
+from ...sync import AlreadyRunning, run_lock
 from ...wealthfolio import WealthfolioError
-from ..context import AppContext, Ctx, redirect, tr
+from ..context import AppContext, Ctx, accounts_of, redirect, tr
 from ..i18n import N_, translate
 
+log = logging.getLogger(__name__)
 router = APIRouter()
 
 # (key, name, what it does in Wealthfolio)
@@ -147,7 +151,8 @@ def _spending(request: Request, ctx: AppContext, c: config_mod.Config) -> dict:
     accounts, error = ctx.wf_accounts(c)
     names = {a.id: a.name for a in accounts}
     rows = [{"key": key, "label": ctx.adapters[key].label, "account": names.get(b.cash_account_id, b.cash_account_id),
-             "on": b.spending} for key, b in c.brokers.items() if key in ctx.adapters and b.cash_account_id]
+             "on": b.spending, "rebook": ctx.adapters[key].giro_with_spending}
+            for key, b in c.brokers.items() if key in ctx.adapters and b.cash_account_id]
     ours = json.loads(ctx.state.meta(meta_keys.SPENDING()) or "[]")
     return {"rows": rows, "tracked": [names.get(a, a) for a in ours], "wf_error": error}
 
@@ -223,12 +228,68 @@ async def spending_settings(request: Request, ctx: Ctx):
         return render(request, ctx, "spending",
                       errors={"broker": tr(request, "Unbekanntes Konto - bitte die Seite neu laden.")})
 
+    # A broker that books its whole giro account only with the tracker (comdirect) books everything again after a
+    # switch, because the two models book a trade differently: its activities are deleted first (reset.py).
+    switching = [k for k in sorted(listed) if ctx.adapters[k].giro_with_spending
+                 and (k in chosen) != c.brokers[k].spending]
+    if switching and (errors := _switch_errors(request, ctx, form, c, switching)):
+        return render(request, ctx, "spending", errors=errors)
+
     def change(c: config_mod.Config) -> None:
         for k in listed:
-            c.brokers[k].spending = k in chosen
+            if k not in switching:
+                c.brokers[k].spending = k in chosen
 
     ctx.update(change)
-    return redirect(request, "/services/spending", tr(request, "Gespeichert."))
+    if not switching:
+        return redirect(request, "/services/spending", tr(request, "Gespeichert."))
+    from .overview import start_job
+
+    for k in switching:
+        ctx.event(request, "reset", broker=k, detail="spending")
+    return start_job(request, ctx, N_("Neu aufsetzen"), _rebook(ctx, switching, chosen), "/services/spending")
+
+
+def _switch_errors(request: Request, ctx: AppContext, form, c: config_mod.Config, switching: list[str]) -> dict:
+    """What stops a switch of the booking model: no confirmation, no password, a broker without its two accounts."""
+    errors: dict[str, str] = {}
+    if form.get("rebook") != "1":
+        errors["broker"] = tr(request, "Zum Umschalten bitte bestätigen, dass die Buchungen dieses Brokers gelöscht "
+                                       "und neu gebucht werden.")
+    elif error := ctx.reconfirm(request, str(form.get("ui_password", ""))):
+        errors["ui_password"] = error
+    elif any(not c.brokers[k].portfolio_account_id for k in switching):
+        errors["broker"] = tr(request, "Erst die beiden Wealthfolio-Konten des Brokers wählen.")
+    return errors
+
+
+def _set_spending(key: str, on: bool, cfg: config_mod.Config) -> None:
+    cfg.brokers[key].spending = on
+
+
+def _rebook(ctx: AppContext, switching: list[str], chosen: set[str]) -> Callable[[str], tuple[str, str]]:
+    """The job of a switch: delete the broker's activities (reset.py), then - and only then - flip its flag."""
+    def work(lang: str) -> tuple[str, str]:
+        total = 0
+        for k in switching:
+            try:
+                with run_lock(ctx.data_dir, wait=5), ctx.wf_client(ctx.cfg()) as wf:
+                    deleted, failures = reset_mod.reset(wf, ctx.state, k, accounts_of(ctx.cfg().broker(k)))
+            except AlreadyRunning:
+                return translate("Gerade läuft ein Abruf - bitte gleich noch einmal.", lang), "warn"
+            except WealthfolioError as e:
+                return translate("Wealthfolio nicht erreichbar: {error}", lang, error=e), "error"
+            if failures:  # nothing is switched: the old model's activities are still there
+                return translate("{deleted} Buchungen gelöscht, {failed} nicht: {errors} - nichts umgeschaltet, bitte "
+                                 "noch einmal versuchen.", lang, deleted=deleted, failed=len(failures),
+                                 errors="; ".join(failures[:3])), "error"
+            total += deleted
+            ctx.update(partial(_set_spending, k, k in chosen))
+            log.info("%s: spending %s, %d activities deleted for a new booking", k, k in chosen, deleted)
+        return translate("Umgeschaltet: {deleted} Buchungen gelöscht. Jetzt den Broker abrufen - er bucht alles neu "
+                         "(bei comdirect mit Anmeldung per TAN).", lang, deleted=total), "ok"
+
+    return work
 
 
 # ── actions ──────────────────────────────────────────────────────────────────

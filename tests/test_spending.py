@@ -198,3 +198,72 @@ def test_a_failing_write_leaves_the_run_and_the_state_alone(tmp_path):
     wf.handle = orig
     syncer.run()
     assert wf.spending["accountIds"] == ["acc-giro"] and _meta(syncer) == ["acc-giro"]
+
+
+# ── a broker that books its whole giro account only with the tracker (comdirect) ────────────────────────────
+def test_switching_the_tracker_starts_a_giro_broker_over(tmp_path, monkeypatch):
+    from brokersync.state import State
+
+    from .fake_broker import FakeBroker
+
+    monkeypatch.setattr(FakeBroker, "giro_with_spending", True)
+    wf = FakeWealthfolio()
+    own = wf.add_existing(accountId="acc-cash", activityType="DEPOSIT", date="2026-01-01T10:00:00.000Z",
+                          amount="50", currency="EUR", comment="von Hand", assetSymbol="", assetId="")
+    syncer, _ = setup(tmp_path, wf)
+    syncer.run()
+    booked = [a for a in wf.activities if a is not own]
+    assert booked and State(tmp_path).synced("fake")
+    from starlette.testclient import TestClient
+
+    from brokersync.web.app import create_app
+
+    app = create_app(tmp_path, wealthfolio=syncer._wealthfolio, adapters={"fake": FakeBroker}, run_in_thread=False)
+    client = TestClient(app, base_url="http://sync.local:8090")
+    first_password(client)
+    token = csrf(client, "/services/spending")
+
+    def switch(*chosen, **extra):
+        return client.post("/services/spending/settings", data={"csrf": token, "broker": list(chosen), **extra})
+
+    # Not without the confirmation: nothing is deleted, nothing switched.
+    r = switch("fake")
+    assert r.status_code == 422 and "Zum Umschalten" in r.text
+    assert not config_mod.load(tmp_path).brokers["fake"].spending and State(tmp_path).synced("fake")
+    assert len(wf.activities) == len(booked) + 1
+
+    # Confirmed: the service's activities go first, then the flag flips; imports and manual entries stay.
+    r = switch("fake", rebook="1")
+    assert "Umgeschaltet" in r.text and config_mod.load(tmp_path).brokers["fake"].spending
+    assert wf.activities == [own] and State(tmp_path).synced("fake") == {}
+
+    # The next run books everything again (the adapter now knows the tracker is on).
+    [r] = syncer.run()
+    assert r.created and any("[SYNC fake:" in a["comment"] for a in wf.activities)
+
+    # And back: switching it off starts over once more, into the usual model.
+    r = switch(rebook="1")
+    assert "Umgeschaltet" in r.text and not config_mod.load(tmp_path).brokers["fake"].spending
+    assert wf.activities == [own]
+
+    # An unchanged selection needs no confirmation.
+    assert "Gespeichert" in switch().text
+
+
+def test_the_sync_tells_a_giro_adapter_whether_the_tracker_is_on(tmp_path, monkeypatch):
+    from .fake_broker import FakeBroker
+
+    monkeypatch.setattr(FakeBroker, "giro_with_spending", True)
+    seen: list[bool] = []
+    original = FakeBroker.get_transactions
+
+    def spy(self, since):
+        seen.append(self.full_giro)
+        return original(self, since)
+
+    monkeypatch.setattr(FakeBroker, "get_transactions", spy)
+    syncer, _ = setup(tmp_path, FakeWealthfolio())
+    syncer.run()
+    turn(tmp_path, True)
+    syncer.run()
+    assert seen == [False, True]
