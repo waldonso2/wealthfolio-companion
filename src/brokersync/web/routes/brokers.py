@@ -319,6 +319,10 @@ def broker_reset(request: Request, ctx: Ctx, key: str, name: str = Form(""), ui_
     return start_job(request, ctx, N_("Neu aufsetzen"), work, f"/brokers/{key}")
 
 
+def _drop_broker(key: str, cfg: config_mod.Config) -> None:
+    cfg.brokers.pop(key, None)
+
+
 @router.get("/brokers/{key}/remove", response_class=HTMLResponse)
 def broker_remove_page(request: Request, ctx: Ctx, key: str):
     if key not in ctx.adapters:
@@ -343,7 +347,7 @@ def broker_remove(request: Request, ctx: Ctx, key: str, name: str = Form(""), ui
         return response
     try:
         with run_lock(ctx.data_dir, wait=5):
-            ctx.update(lambda cfg: cfg.brokers.pop(key, None) and None)
+            ctx.update(partial(_drop_broker, key))
             ctx.vault.update(lambda d: d.get("brokers", {}).pop(key, None))
             ctx.state.forget_broker(key)
     except AlreadyRunning:
