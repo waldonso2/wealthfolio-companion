@@ -4,7 +4,7 @@
 # Build: docker build -t companion .   Run: deploy/docker-compose.example.yml
 # The base image by digest, written out in both stages: Dependabot (docker) proposes a new digest only for a FROM it
 # can read, and a weekly security patch of Debian/Python arrives as such a pull request (#155).
-FROM python:3.13-slim-trixie@sha256:2d44738ebf4ce5f63b9d9ea871e9c7cfdc0426f7b0c97cac915fd88ded1d86bb AS build
+FROM python:3.13-slim-trixie@sha256:e48f59cdba69a3cbd9ed2cf0f348d90d45a8d350d98134cf1070bc106ee9ed90 AS build
 # 1: the build fails without Scalable's sc (the published image); 0: an image without Scalable (local tests).
 ARG REQUIRE_SC=1
 ENV PIP_DISABLE_PIP_VERSION_CHECK=1 PIP_NO_CACHE_DIR=1 PYTHONDONTWRITEBYTECODE=1
@@ -16,7 +16,7 @@ RUN python -m venv /opt/companion \
  && /opt/companion/bin/pip install --no-deps --no-build-isolation .
 RUN /opt/companion/bin/wealthfolio-companion install-sc --dir /opt/companion/bin || [ "$REQUIRE_SC" = 0 ]
 
-FROM python:3.13-slim-trixie@sha256:2d44738ebf4ce5f63b9d9ea871e9c7cfdc0426f7b0c97cac915fd88ded1d86bb
+FROM python:3.13-slim-trixie@sha256:e48f59cdba69a3cbd9ed2cf0f348d90d45a8d350d98134cf1070bc106ee9ed90
 COPY --from=build /opt/companion /opt/companion
 RUN useradd --system --uid 10001 --user-group --home-dir /data --no-create-home --shell /usr/sbin/nologin companion \
  && mkdir -p /data /tls \
